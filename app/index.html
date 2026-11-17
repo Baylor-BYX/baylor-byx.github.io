@@ -84,7 +84,7 @@ h3{font-size:12.5px;font-weight:700;color:var(--muted);letter-spacing:.09em}
 .chip-me em{font-style:normal;color:var(--gold);font-weight:700}
 @media (max-width:420px){.brand img{height:28px}.brand b{font-size:15px}.brand .bt{padding-left:10px}}
 
-.tabs{position:fixed;left:0;right:0;bottom:0;z-index:30;display:grid;grid-template-columns:repeat(6,1fr);background:var(--panel);border-top:1px solid var(--line);
+.tabs{position:fixed;left:0;right:0;bottom:0;z-index:30;display:grid;grid-auto-flow:column;grid-auto-columns:1fr;background:var(--panel);border-top:1px solid var(--line);
   padding:6px max(6px,env(safe-area-inset-right)) calc(6px + env(safe-area-inset-bottom)) max(6px,env(safe-area-inset-left))}
 .tabs a{display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 2px;border-radius:10px;text-decoration:none;color:var(--muted);font-size:11.5px;font-weight:600}
 .tabs a svg{width:21px;height:21px}
@@ -286,6 +286,7 @@ th select{min-width:130px;padding:5px 7px;font-size:13px}
 .wkbar small{font-size:11px;color:var(--muted,#6E6B66)}
 @media print{nav.tabs,.noprint,.banner,header .me,#toast{display:none!important}body{background:#fff}.tile,.section,.card{break-inside:avoid}}
 .nonav nav.tabs{display:none!important}
+.calopt{text-decoration:none;color:inherit;font:inherit;background:none;border:0;border-top:1px solid var(--line)}.calopt:first-child{border-top:0}.calopt small{white-space:normal;overflow:visible;text-overflow:clip}.calopt b{color:var(--accent,#4F2D7F)}
 </style>
 </head>
 <body>
@@ -533,6 +534,23 @@ function nudgeHref(n){
   var msg=n.l.reachedOut?"Hey "+f+"! Did you and "+g+" land on a time for lunch? Save it in the BYX Rush Portal once you do. Thanks brother!":"Hey "+f+"! Have you had a chance to reach out to "+g+" yet? You can text him right from the BYX Rush Portal. Thanks brother!";
   return extText(tm.phone,msg,tm.name);
 }
+function calInfo(l){
+  var p=l.date.split("-"),hm=(l.time||"12:00").split(":");var st=new Date(+p[0],+p[1]-1,+p[2],+hm[0],+hm[1]);var en=new Date(st.getTime()+3600000);
+  var pad=function(n){return (n<10?"0":"")+n;};
+  var stamp=function(d){return d.getFullYear()+pad(d.getMonth()+1)+pad(d.getDate())+"T"+pad(d.getHours())+pad(d.getMinutes())+"00";};
+  var isoL=function(d){return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate())+"T"+pad(d.getHours())+":"+pad(d.getMinutes())+":00";};
+  var who=(l.rusheeIds||[]).map(rName).join(", ");var title=(l.kind||"Lunch")+" with "+who;
+  var details="BYX rush "+(l.kind||"lunch").toLowerCase()+". Write your note in the Rush Portal after: https://baylor-byx.github.io";
+  return {title:title,place:l.place||"",details:details,
+    google:"https://calendar.google.com/calendar/render?action=TEMPLATE&text="+encodeURIComponent(title)+"&dates="+stamp(st)+"/"+stamp(en)+"&ctz=America/Chicago&location="+encodeURIComponent(l.place||"")+"&details="+encodeURIComponent(details),
+    outlook:"https://outlook.office.com/calendar/0/deeplink/compose?path=%2Fcalendar%2Faction%2Fcompose&rru=addevent&subject="+encodeURIComponent(title)+"&startdt="+encodeURIComponent(isoL(st))+"&enddt="+encodeURIComponent(isoL(en))+"&location="+encodeURIComponent(l.place||"")+"&body="+encodeURIComponent(details)};
+}
+function icsText(l){return decodeURIComponent(icsHref(l).replace(/^data:text\/calendar;charset=utf-8,/,""));}
+function openIcs(l){
+  var blob=new Blob([icsText(l)],{type:"text/calendar;charset=utf-8"});var url=URL.createObjectURL(blob);
+  var a=document.createElement("a");a.href=url;a.download="rush-lunch-"+l.date+".ics";document.body.appendChild(a);a.click();
+  setTimeout(function(){a.remove();URL.revokeObjectURL(url);},4000);
+}
 function icsHref(l){
   if(!l.date)return "";var d=l.date.replace(/-/g,"");var t=(l.time||"12:00").replace(":","")+"00";
   var p=l.date.split("-"),hm=(l.time||"12:00").split(":");var end=new Date(+p[0],+p[1]-1,+p[2],+hm[0],+hm[1]+60);
@@ -671,7 +689,7 @@ function lunchCard(l,opts){
     } else {
       actions+='<button class="btn sm" data-a="done-l" data-id="'+esc(l.id)+'">Mark done</button>';
       actions+='<button class="btn sm ghost" data-a="resched" data-id="'+esc(l.id)+'">Change time</button>';
-      actions+='<a class="btn sm ghost" href="'+esc(icsHref(l))+'" download="rush-lunch-'+esc(l.date)+'.ics">Add to calendar</a>';
+      actions+='<button class="btn sm ghost" data-a="cal" data-id="'+esc(l.id)+'">Add to calendar</button>';
     }
   }
   if(isCoord())actions+='<button class="btn sm ghost" data-a="edit-l" data-id="'+esc(l.id)+'">Edit</button>';
@@ -1349,6 +1367,15 @@ function modalHTML(){
       '<div class="field"><label for="se-next">Name of the next season</label><input id="se-next" name="next" required placeholder="Fall 2027 Rush"></div>'+
       '<div class="field"><label for="se-ok">Type END to confirm</label><input id="se-ok" name="ok" required autocomplete="off"></div>'+
       '<div class="row"><button class="btn danger" type="submit">Archive the season</button></div></form>';
+  } else if(m.type==="cal"){
+    var lc=S.lunches.get(m.id);var ci=lc&&lc.date?calInfo(lc):null;
+    h+='<div class="section"><div class="spread"><h2>Add to calendar</h2><button type="button" class="btn sm ghost" data-a="close-modal">Done</button></div>'+
+      (ci?'<p class="muted small" style="margin:0">'+esc(ci.title)+' · '+esc(fmtDate(lc.date))+' · '+esc(fmtTime(lc.time)||"12:00 PM")+(ci.place?" · "+esc(ci.place):"")+'</p>'+
+      '<div class="list">'+
+      '<button class="item calopt" data-a="cal-apple" data-id="'+esc(lc.id)+'" style="text-align:left;width:100%"><span class="main"><b>Apple Calendar</b><small>Built into your iPhone.</small></span></button>'+
+      '<a class="item calopt" href="'+esc(ci.google)+'" target="_blank" rel="noopener"><span class="main"><b>Google Calendar</b><small>Opens with the lunch filled in.</small></span></a>'+
+      '<a class="item calopt" href="'+esc(ci.outlook)+'" target="_blank" rel="noopener"><span class="main"><b>Outlook</b><small>For your Baylor calendar.</small></span></a></div>'+
+      '<p class="small muted" style="margin:0">Apple Calendar not opening from the home-screen app? Open baylor-byx.github.io in Safari and try again there.</p>':'<div class="empty">This lunch has no date yet.</div>')+'</div>';
   } else if(m.type==="sublogged"){
     var nLogged=Math.max(1,arr(S.submissions).filter(function(x){return x.type==="lunch"&&x.status==="pending"&&x.uid===me.id;}).length);
     var cs2=coordinators();var gx2=extGroup(cs2.map(function(c){return c.phone;}),"Hey "+cs2.map(function(c){return c.name.split(" ")[0];}).join(" and ")+"! I logged "+(nLogged===1?"a lunch":nLogged+" lunches")+" in the BYX Rush Portal for you to review.","Jonah & Clark");
@@ -1513,6 +1540,8 @@ document.addEventListener("click",function(e){
     case "signout":if(me.preview)exitPreview();firebase.auth().signOut();break;
     case "preview-start":(function(){var k=el.dataset.kind;var sel=k==="member"?document.getElementById("pv-bro"):k==="coord"?document.getElementById("pv-co"):null;startPreview(k,sel?sel.value:"");})();break;
     case "preview-exit":exitPreview();break;
+    case "cal":ui.modal={type:"cal",id:id};render();break;
+    case "cal-apple":(function(){if(me.preview){toast("Preview only: this would open Calendar.");return;}var lc=S.lunches.get(id);if(lc)openIcs(lc);})();break;
     case "del-viewer":if(armed(el,"v"+id)){delDoc("access/"+id).then(function(){toast("Access removed");loadViewers();});}break;
     case "verify-resend":(function(){var u=firebase.auth().currentUser;if(u)u.sendEmailVerification().then(function(){authUI.err="Sent. Check your inbox (and spam).";render();},function(e){authUI.err=authErr(e);render();});})();break;
     case "verify-check":(function(){var u=firebase.auth().currentUser;if(!u)return;u.reload().then(function(){if(firebase.auth().currentUser.emailVerified)return u.getIdToken(true).then(function(){location.reload();});authUI.err="Not confirmed yet. Tap the link in the email first.";render();});})();break;
