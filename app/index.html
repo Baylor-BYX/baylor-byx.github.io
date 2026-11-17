@@ -341,6 +341,7 @@ function byName(a,b){return String(a.name||"").localeCompare(String(b.name||""))
 
 /* ---------- derived data ---------- */
 function myTeam(){
+  if(me.preview)return me.preview.tid?(S.team.get(me.preview.tid)||null):null;
   var list=arr(S.team);
   if(me.email){var te=list.find(function(x){return String(x.email||"").toLowerCase()===me.email;});if(te)return te;}
   if(me.id){var t=list.find(function(x){return x.uid===me.id;});if(t)return t;}
@@ -434,6 +435,7 @@ function errMsg(e){var c=e&&e.code;
   if(c==="resource_exhausted")return "Too many changes at once. Wait a few seconds and try again.";
   return "Couldn't save. Check your connection and try again.";}
 function write(fn){
+  if(me.preview){toast("Preview only: nothing was saved.");return Promise.reject({code:"preview"});}
   if(!db){toast("Not connected yet. Try again in a moment.");return Promise.reject(new Error("no db"));}
   return fn().catch(function(e){if(e&&e.code==="invalid_argument"&&me.canWrite!==true){readOnly=true;}toast(errMsg(e));render();throw e;});
 }
@@ -477,12 +479,13 @@ function render(){
 function statusText(){return {connecting:"Connecting",live:"Live: changes sync to everyone",slow:"Can't reach the portal yet",offline:"Offline preview",nodb:"Sign in to load the hub",signin:"Signed out",verify:"Confirm your email",noaccess:"Not on the team list"}[status]||"Connection problem";}
 function banners(){
   var b="";
+  if(me.preview)b+='<div class="banner" style="background:#CCDE57;color:#371859;border-color:#B5C94A;font-weight:700;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><span>Previewing as '+esc(previewLabel())+'. Nothing you do here is saved.</span><button class="btn sm" data-a="preview-exit">Exit preview</button></div>';
   if(status==="connecting")b+='<div class="banner">Loading the rush portal…</div>';
   else if(status==="slow")b+='<div class="banner bad">Can\'t reach the portal yet. What you see may be out of date; it will catch up on its own when the connection returns.</div>';
   else if(status==="offline"||status==="nodb")b+='<div class="banner bad">Can\'t reach the portal. Check your connection and reopen the app.</div>';
   else if(status.indexOf("err")===0)b+='<div class="banner bad">The live connection dropped ('+esc(status.slice(4))+'). Reopen the page to reconnect.</div>';
   if(db&&navigator.onLine===false)b+='<div class="banner">You’re offline. You can keep working; changes save automatically when you reconnect.</div>';
-  if(me.viewer)b+='<div class="banner">Leadership view: you can see everything in the portal, but not change it.</div>';
+  if(me.viewer&&!me.preview)b+='<div class="banner">Leadership view: you can see everything in the portal, but not change it.</div>';
   else if(readOnly)b+='<div class="banner">You can view the portal but not change it. Ask Jonah or Clark to check your email on the Team tab.</div>';
   return b;
 }
@@ -595,6 +598,26 @@ function vReport(){
   h+='<section class="section"><h3>Rush team activity this season</h3><table class="score"><thead><tr><th>Brother</th><th>Lunches</th><th>Notes</th><th>Texts</th></tr></thead><tbody>'+bro.map(function(x){return '<tr><td>'+esc(x.t.name)+'</td><td class="num">'+x.lu+'</td><td class="num">'+x.no+'</td><td class="num">'+x.tx+'</td></tr>';}).join("")+'</tbody></table></section>';
   return h;
 }
+function startPreview(kind,tid){
+  if(!me.isOwner&&!(me.real&&me.real.isOwner))return;
+  if(!me.real)me.real={isOwner:me.isOwner,viewer:me.viewer,role:me.role};
+  me.isOwner=false;me.preview={kind:kind,tid:kind==="viewer"?"":tid};
+  me.viewer=kind==="viewer";readOnly=kind==="viewer";
+  ui.modal=null;ui.drawer=null;ui.plan=null;location.hash=kind==="viewer"?"#board":"#me";render();window.scrollTo(0,0);
+}
+function exitPreview(){
+  if(!me.real)return;me.isOwner=me.real.isOwner;me.viewer=me.real.viewer;me.role=me.real.role;me.real=null;me.preview=null;readOnly=false;
+  ui.modal=null;ui.drawer=null;ui.plan=null;location.hash="#team";render();
+}
+function previewLabel(){
+  if(!me.preview)return "";var t=myTeam();
+  return me.preview.kind==="viewer"?"Leadership (view only)":me.preview.kind==="coord"?(t?t.name:"a coordinator")+" (rush coordinator)":(t?t.name:"a brother")+" (rush team)";
+}
+// in a preview, Text and Calendar links must not open anything real
+document.addEventListener("click",function(e){
+  if(!me.preview)return;var a=e.target&&e.target.closest&&e.target.closest('a[href^="sms:"],a[href^="data:text/calendar"]');
+  if(!a)return;e.preventDefault();e.stopPropagation();toast("Preview only: this would open "+(/^sms:/.test(a.getAttribute("href"))?"Messages":"Calendar")+".");
+},true);
 function loadViewers(){
   if(!db)return;db.collection("access").get().then(function(snap){
     S.viewers=snap.docs.map(function(d){return Object.assign({},d.data(),{id:d.id});}).filter(function(v){return v.role==="viewer";}).sort(function(a,b){return String(a.name).localeCompare(String(b.name));});render();
@@ -693,11 +716,11 @@ function vMe(){
      '<div class="tile'+(owed.length?" alert":"")+'"><span class="num">'+owed.length+'</span><span>Notes you owe</span></div>'+
      '<div class="tile"><span class="num">'+myR.length+'</span><span>Your guys</span></div></div>';
   if(!readOnly)h+='<div class="row"><button class="btn" data-a="sub-lunch">+ Log a lunch I went on</button><button class="btn" data-a="sub-pnm">+ Suggest a new PNM</button></div>';
-  var mySubs=arr(S.submissions).filter(function(x){return x.by===t.id;}).sort(function(a,b){return (b.createdAt||0)-(a.createdAt||0);}).slice(0,5);
-  if(mySubs.length)h+='<section class="section"><h3>Your submissions</h3><div class="list">'+mySubs.map(function(x){
+  var mySubs=arr(S.submissions).filter(function(x){return x.by===t.id&&x.status==="pending";}).sort(function(a,b){return (b.createdAt||0)-(a.createdAt||0);});
+  if(mySubs.length>3)h+='<div class="small muted" style="padding:2px 4px">You have <b>'+mySubs.length+'</b> submissions waiting for Jonah and Clark to review. They disappear from here once reviewed.</div>';
+  else if(mySubs.length)h+='<section class="section"><h3>Waiting for review</h3><div class="list">'+mySubs.map(function(x){
       var lbl=x.type==="lunch"?"Lunch with "+rName(x.rusheeId)+" · "+fmtDate(x.date):"New PNM: "+x.name;
-      var st=x.status==="pending"?'<span class="sc warn">Waiting for review</span>':x.status==="approved"?'<span class="sc good">Approved</span>':'<span class="sc">Not added</span>';
-      return '<div class="item" style="cursor:default"><span class="main"><b>'+esc(lbl)+'</b><small>'+esc(ago(x.createdAt))+'</small></span><span class="side">'+st+'</span></div>';}).join("")+'</div></section>';
+      return '<div class="item" style="cursor:default"><span class="main"><b>'+esc(lbl)+'</b><small>'+esc(ago(x.createdAt))+'</small></span><span class="side"><span class="sc warn">Waiting</span></span></div>';}).join("")+'</div></section>';
   if(toSched.length){h+='<section class="section"><h3>Your assignments: reach out and set a time</h3>'+toSched.map(function(l){return lunchCard(l);}).join("")+'</section>';}
   if(owed.length){
     h+='<section class="section"><h3>Notes you owe</h3>';
@@ -1041,6 +1064,13 @@ function vTeam(){
     }).join("")+'</div>';
   } else h+='<div class="empty">No one on the roster yet. Start on the My rush tab.</div>';
   h+='<div class="row"><span class="small muted">Signed in as '+esc(me.email||"")+'</span><button class="btn sm ghost" data-a="signout">Sign out</button></div>';
+  if(me.isOwner&&!me.preview){
+    var bros=arr(S.team).filter(function(x){return x.role!=="coordinator";}).sort(byName),cos=arr(S.team).filter(function(x){return x.role==="coordinator";}).sort(byName);
+    h+='<div class="card"><h3>Preview the app as…</h3><p class="small muted" style="margin:0">See exactly what each person sees. Preview is look-only: nothing saves, and Text or Calendar buttons won’t open.</p>'+
+      '<div class="fields"><div class="field"><label for="pv-bro">A rush team brother</label><div class="row" style="flex-wrap:nowrap"><select id="pv-bro">'+bros.map(function(x){return '<option value="'+esc(x.id)+'">'+esc(x.name)+'</option>';}).join("")+'</select><button class="btn" data-a="preview-start" data-kind="member"'+(bros.length?"":" disabled")+'>Preview</button></div></div>'+
+      '<div class="field"><label for="pv-co">A rush coordinator</label><div class="row" style="flex-wrap:nowrap"><select id="pv-co">'+cos.map(function(x){return '<option value="'+esc(x.id)+'">'+esc(x.name)+'</option>';}).join("")+'</select><button class="btn" data-a="preview-start" data-kind="coord"'+(cos.length?"":" disabled")+'>Preview</button></div></div>'+
+      '<div class="field"><label>Leadership (view only)</label><div class="row"><button class="btn" data-a="preview-start" data-kind="viewer">Preview leadership view</button></div></div></div></div>';
+  }
   if(isCoord()){
     if(!S.viewersLoaded){S.viewersLoaded=true;loadViewers();}
     h+='<div class="card"><h3>Leadership access</h3><p class="small muted" style="margin:0">View-only access for chapter leadership or national staff. They see every tab and how rush is going, but can’t change anything and aren’t assigned lunches.</p>'+
@@ -1476,7 +1506,9 @@ document.addEventListener("click",function(e){
     case "season-end":ui.modal={type:"season"};render();break;
     case "signin-email-show":authUI.email=true;authUI.err="";render();break;
     case "signin-reset":resetPassword();break;
-    case "signout":firebase.auth().signOut();break;
+    case "signout":if(me.preview)exitPreview();firebase.auth().signOut();break;
+    case "preview-start":(function(){var k=el.dataset.kind;var sel=k==="member"?document.getElementById("pv-bro"):k==="coord"?document.getElementById("pv-co"):null;startPreview(k,sel?sel.value:"");})();break;
+    case "preview-exit":exitPreview();break;
     case "del-viewer":if(armed(el,"v"+id)){delDoc("access/"+id).then(function(){toast("Access removed");loadViewers();});}break;
     case "verify-resend":(function(){var u=firebase.auth().currentUser;if(u)u.sendEmailVerification().then(function(){authUI.err="Sent. Check your inbox (and spam).";render();},function(e){authUI.err=authErr(e);render();});})();break;
     case "verify-check":(function(){var u=firebase.auth().currentUser;if(!u)return;u.reload().then(function(){if(firebase.auth().currentUser.emailVerified)return u.getIdToken(true).then(function(){location.reload();});authUI.err="Not confirmed yet. Tap the link in the email first.";render();});})();break;
@@ -1847,7 +1879,7 @@ function boot(){
     ["rushees","team","lunches","notes","events","checkins","reachouts","submissions"].forEach(function(n){S[n]=new Map();S.loaded[n]=false;});
     if(!u){me={};status="signin";render();return;}
     if(!u.emailVerified){me={id:u.uid,email:String(u.email||"").toLowerCase()};status="verify";render();return;}
-    me={id:u.uid,email:String(u.email||"").toLowerCase(),isOwner:false,canWrite:true,viewer:false,role:""};S.viewers=null;S.viewersLoaded=false;
+    me={id:u.uid,email:String(u.email||"").toLowerCase(),isOwner:false,canWrite:true,viewer:false,role:"",preview:null,real:null};S.viewers=null;S.viewersLoaded=false;
     me.isOwner=owners.indexOf(me.email)>=0;
     status="connecting";render();
     var timer=setTimeout(function(){if(status==="connecting"){status="slow";render();}},10000);
