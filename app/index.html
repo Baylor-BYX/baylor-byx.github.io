@@ -1859,7 +1859,7 @@ function boot(){
       if(me.viewer){readOnly=true;if(ui.route==="me")ui.route="board";}
       db=fs;
       ["rushees","team","lunches","notes","events","checkins","reachouts","submissions"].forEach(function(name){
-        unsubs.push(fs.collection(name).onSnapshot(function(snap){
+        unsubs.push(fs.collection(name).onSnapshot({includeMetadataChanges:true},function(snap){
           var m=new Map();snap.docs.forEach(function(d){m.set(d.id,Object.assign({},d.data(),{id:d.id}));});
           S[name]=m;S.loaded[name]=true;
           if((!snap.metadata.fromCache||navigator.onLine===false)&&status!=="live"&&status.indexOf("err")!==0){clearTimeout(timer);status="live";}

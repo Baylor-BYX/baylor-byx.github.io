@@ -1,7 +1,7 @@
 // BYX Rush Portal: keeps the app opening with weak or no signal.
 // The app's own files load from the network first (so updates show right away)
 // and fall back to the saved copy offline. Firebase's code is saved after first use.
-var CACHE = "byx-rush-v3";
+var CACHE = "byx-rush-v3b";
 var SHELL = ["./", "./index.html", "./firebase-config.js", "./manifest.json", "./icons/icon-192.png", "./icons/apple-touch-icon.png"];
 
 self.addEventListener("install", function (e) {
