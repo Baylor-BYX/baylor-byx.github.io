@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Move data into the Rush Portal</title>
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script src="firebase-config.js"></script>
+<style>
+:root{--plum:#371859;--purple:#4F2D7F;--gold:#CCDE57;--iron:#2C2A26;--bg:#F3F2F5;--line:#E1DEE7;--muted:#6E6B66;--bad:#AC2A1C;--good:#2E7D4F}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--iron);font:16px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+header{background:var(--plum);color:#fff;padding:22px 20px;border-bottom:6px solid var(--gold)}
+header h1{margin:0;font-size:24px;letter-spacing:.5px;text-transform:uppercase}
+header p{margin:4px 0 0;color:#DCD2EC;font-size:14px}
+main{max-width:860px;margin:0 auto;padding:20px}
+.card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:18px 20px;margin:16px 0}
+.card h2{margin:0 0 8px;font-size:18px;color:var(--purple);text-transform:uppercase;letter-spacing:.5px}
+.step{display:inline-block;background:var(--purple);color:#fff;border-radius:8px;width:26px;height:26px;text-align:center;line-height:26px;font-weight:800;margin-right:8px}
+button{font:inherit;font-weight:700;border-radius:10px;border:1px solid var(--line);background:#fff;color:var(--purple);padding:9px 16px;cursor:pointer}
+button.primary{background:var(--purple);border-color:var(--purple);color:#fff}
+button:disabled{opacity:.5;cursor:default}
+input[type=email],input[type=file]{font:inherit;padding:8px 10px;border:1px solid var(--line);border-radius:8px;width:100%}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{text-align:left;font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);padding:6px}
+td{padding:6px;border-top:1px solid var(--line);vertical-align:middle}
+.muted{color:var(--muted);font-size:14px}
+.bad{color:var(--bad)} .good{color:var(--good)}
+.counts{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}
+.counts span{background:#ECE7F4;border-radius:999px;padding:4px 12px;font-size:13px;font-weight:700}
+progress{width:100%;height:14px;accent-color:var(--purple)}
+.hidden{display:none}
+</style>
+</head>
+<body>
+<header><h1>Move data into the Rush Portal</h1><p>One-time tool for the owner. Brings over everything from the claude.ai portal export.</p></header>
+<main>
+  <div class="card" id="c-auth">
+    <h2><span class="step">1</span>Sign in as the owner</h2>
+    <p class="muted" id="who">Not signed in.</p>
+    <button class="primary" id="b-signin">Sign in with Google</button>
+    <button id="b-signout" class="hidden">Sign out</button>
+    <p class="bad" id="auth-err"></p>
+  </div>
+
+  <div class="card" id="c-file">
+    <h2><span class="step">2</span>Choose the export file</h2>
+    <p class="muted">In the old portal on claude.ai: Team tab → <b>Export everything (.json)</b>. Then pick that file here.</p>
+    <input type="file" id="f" accept=".json,application/json">
+    <div class="counts" id="counts"></div>
+    <p class="bad" id="file-err"></p>
+  </div>
+
+  <div class="card hidden" id="c-team">
+    <h2><span class="step">3</span>Add each brother’s sign-in email</h2>
+    <p class="muted">This is the email he’ll sign in with: his Gmail for “Sign in with Google,” or any email (like his Baylor address) if he’ll use a password instead. Brothers without an email can’t get in until a coordinator adds one on the Team tab. You can fill these in later there too.</p>
+    <table><thead><tr><th>Brother</th><th>Role</th><th style="width:55%">Sign-in email</th></tr></thead><tbody id="team-rows"></tbody></table>
+  </div>
+
+  <div class="card hidden" id="c-go">
+    <h2><span class="step">4</span>Import</h2>
+    <p class="muted" id="existing"></p>
+    <button class="primary" id="b-go" disabled>Import everything</button>
+    <p><progress id="prog" value="0" max="1" class="hidden"></progress></p>
+    <p id="go-msg"></p>
+  </div>
+</main>
+<script>
+(function(){
+  var $=function(id){return document.getElementById(id);};
+  var cfg=window.BYX_FIREBASE;
+  if(!window.firebase||!cfg||!cfg.apiKey||/PASTE/.test(cfg.apiKey)){$("auth-err").textContent="firebase-config.js still has the placeholder values. Paste your Firebase config first.";$("b-signin").disabled=true;return;}
+  firebase.initializeApp(cfg);
+  var auth=firebase.auth(),fs=firebase.firestore();
+  var owners=(window.BYX_OWNERS||[]).map(function(x){return String(x).toLowerCase();});
+  var data=null,user=null,existingTeam={};
+  var NAMES=["rushees","team","lunches","notes","events","checkins","reachouts","submissions"];
+
+  $("b-signin").onclick=function(){var p=new firebase.auth.GoogleAuthProvider();p.setCustomParameters({prompt:"select_account"});auth.signInWithPopup(p).catch(function(e){$("auth-err").textContent=e.message;});};
+  $("b-signout").onclick=function(){auth.signOut();};
+  auth.onAuthStateChanged(function(u){
+    user=u;$("auth-err").textContent="";
+    $("b-signin").classList.toggle("hidden",!!u);$("b-signout").classList.toggle("hidden",!u);
+    if(!u){$("who").textContent="Not signed in.";}
+    else{var e=String(u.email||"").toLowerCase();
+      $("who").innerHTML="Signed in as <b>"+esc(e)+"</b>"+(owners.indexOf(e)>=0?' <span class="good">✓ owner</span>':' <span class="bad">— not in BYX_OWNERS in firebase-config.js, so the import will be refused</span>');
+      checkExisting();}
+    ready();
+  });
+
+  function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];});}
+
+  function checkExisting(){
+    fs.collection("rushees").limit(1).get().then(function(s){
+      $("existing").innerHTML=s.empty?"The new portal is empty. Ready to import.":'<span class="bad">The new portal already has data.</span> Importing again overwrites records with the same id and keeps anything new. That’s safe for a second, fresher import on moving day.';
+    },function(e){$("existing").innerHTML='<span class="bad">Can’t read the database ('+esc(e.code)+'). Check that the rules are published and your email is the owner email in them.</span>';});
+  }
+
+  $("f").onchange=function(){
+    var file=this.files[0];$("file-err").textContent="";data=null;$("counts").innerHTML="";
+    if(!file)return ready();
+    file.text().then(function(t){
+      var j=JSON.parse(t);
+      if(j.format!=="byx-rush-export"||!j.collections)throw new Error("That isn't a Rush Portal export file.");
+      data=j;
+      $("counts").innerHTML=NAMES.map(function(n){return "<span>"+(j.collections[n]||[]).length+" "+n+"</span>";}).join("")+
+        "<span>"+(j.collections.rushees||[]).filter(function(r){return r.photoData;}).length+" photos</span><span>exported "+esc(new Date(j.exportedAt).toLocaleString())+"</span>";
+      return fs.collection("team").get().then(function(snap){snap.docs.forEach(function(d){existingTeam[d.id]=d.data();});},function(){}).then(function(){
+      var team=(j.collections.team||[]).slice().sort(function(a,b){return (a.role==="coordinator"?0:1)-(b.role==="coordinator"?0:1)||String(a.name).localeCompare(b.name);});
+      $("team-rows").innerHTML=team.map(function(t){return '<tr><td><b>'+esc(t.name)+'</b></td><td>'+(t.role==="coordinator"?"Coordinator":"Rush team")+'</td><td><input type="email" data-id="'+esc(t.id)+'" value="'+esc(t.email||(existingTeam[t.id]||{}).email||"")+'" placeholder="name@gmail.com"></td></tr>';}).join("");
+      ready();
+      });
+    }).catch(function(e){$("file-err").textContent=e.message||"Couldn't read that file.";ready();});
+  };
+
+  function ready(){
+    $("c-team").classList.toggle("hidden",!data);$("c-go").classList.toggle("hidden",!data);
+    $("b-go").disabled=!(data&&user);
+  }
+
+  function emails(){
+    var m={},bad=[],seen={};
+    document.querySelectorAll("#team-rows input").forEach(function(i){var v=i.value.trim().toLowerCase();if(!v)return;
+      if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v))bad.push(v);else if(seen[v])bad.push(v+" (used twice)");seen[v]=1;m[i.dataset.id]=v;});
+    return {map:m,bad:bad};
+  }
+
+  $("b-go").onclick=function(){
+    var em=emails();
+    if(em.bad.length){$("go-msg").innerHTML='<span class="bad">Fix these emails first: '+esc(em.bad.join(", "))+'</span>';return;}
+    var btn=this;btn.disabled=true;$("go-msg").textContent="Importing…";
+    var ops=[];
+    if(data.config){var c=Object.assign({},data.config);delete c.textLink;ops.push(["config/main",c]);}
+    NAMES.forEach(function(n){(data.collections[n]||[]).forEach(function(d){
+      var x=JSON.parse(JSON.stringify(d));var id=x.id;delete x.id;if(!id)return;
+      if(n==="rushees"){delete x.photo;}
+      if(n==="team"){x.uid=(existingTeam[id]||{}).uid||null;x.email=em.map[id]||"";}
+      ops.push([n+"/"+id,x]);
+    });});
+    (data.collections.team||[]).forEach(function(t){var e=em.map[t.id];if(e)ops.push(["access/"+e,{role:t.role==="coordinator"?"coordinator":"member",name:t.name}]);});
+    // batch by count and size (Firestore caps a commit around 10 MB)
+    var batches=[],cur=[],bytes=0;
+    ops.forEach(function(o){var sz=JSON.stringify(o[1]).length;if(cur.length>=400||bytes+sz>4000000){batches.push(cur);cur=[];bytes=0;}cur.push(o);bytes+=sz;});
+    if(cur.length)batches.push(cur);
+    var prog=$("prog");prog.classList.remove("hidden");prog.max=ops.length;prog.value=0;var doneN=0;
+    batches.reduce(function(p,b){return p.then(function(){var wb=fs.batch();b.forEach(function(o){wb.set(fs.doc(o[0]),o[1]);});return wb.commit().then(function(){doneN+=b.length;prog.value=doneN;$("go-msg").textContent="Imported "+doneN+" of "+ops.length+"…";});});},Promise.resolve())
+    .then(function(){
+      var missing=(data.collections.team||[]).filter(function(t){return !em.map[t.id];}).map(function(t){return t.name;});
+      $("go-msg").innerHTML='<span class="good"><b>Done.</b> '+ops.length+' records imported.</span> <a href="./">Open the portal →</a>'+(missing.length?'<br><span class="muted">Still need a sign-in email (add on the Team tab): '+esc(missing.join(", "))+'</span>':'');
+      checkExisting();
+    },function(e){
+      $("go-msg").innerHTML='<span class="bad">Stopped after '+doneN+' records: '+esc(e.code||e.message)+'.</span> '+(e.code==="permission-denied"?"Your email must be the owner email in both firestore.rules and firebase-config.js.":"Fix the problem and run the import again; it picks up safely.");
+      btn.disabled=false;
+    });
+  };
+})();
+</script>
+</body>
+</html>
