@@ -280,6 +280,11 @@ th select{min-width:130px;padding:5px 7px;font-size:13px}
 @media (prefers-reduced-motion:no-preference){.drawer{animation:slide .18s ease-out}.modal{animation:rise .18s ease-out}}
 @keyframes slide{from{transform:translateX(30px);opacity:.6}to{transform:none;opacity:1}}
 @keyframes rise{from{transform:translateY(20px);opacity:.6}to{transform:none;opacity:1}}
+.wkbars{display:flex;align-items:flex-end;gap:10px;height:150px;padding-top:8px}
+.wkbar{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;gap:4px}
+.wkbar i{display:block;width:100%;max-width:44px;background:var(--purple,#4F2D7F);border-radius:8px 8px 3px 3px;min-height:3px}
+.wkbar small{font-size:11px;color:var(--muted,#6E6B66)}
+@media print{nav.tabs,.noprint,.banner,header .me,#toast{display:none!important}body{background:#fff}.tile,.section,.card{break-inside:avoid}}
 </style>
 </head>
 <body>
@@ -447,7 +452,7 @@ var ICONS={
   team:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3l8 4v5c0 4.5-3.4 8-8 9-4.6-1-8-4.5-8-9V7z"/></svg>'
 };
 var TABS=[["me","My rush"],["board","Board"],["calendar","Calendar"],["events","Events"],["rushees","Rushees"],["team","Team"]];
-var TAB_OF={lunches:"calendar",plan:"board",import:"rushees",status:"rushees"};
+var TAB_OF={lunches:"calendar",plan:"board",import:"rushees",status:"rushees",report:"board"};
 
 function render(){
   var app=document.getElementById("app");
@@ -476,9 +481,119 @@ function banners(){
   else if(status==="slow")b+='<div class="banner bad">Can\'t reach the portal yet. What you see may be out of date; it will catch up on its own when the connection returns.</div>';
   else if(status==="offline"||status==="nodb")b+='<div class="banner bad">Can\'t reach the portal. Check your connection and reopen the app.</div>';
   else if(status.indexOf("err")===0)b+='<div class="banner bad">The live connection dropped ('+esc(status.slice(4))+'). Reopen the page to reconnect.</div>';
+  if(db&&navigator.onLine===false)b+='<div class="banner">You’re offline. You can keep working; changes save automatically when you reconnect.</div>';
   if(me.viewer)b+='<div class="banner">Leadership view: you can see everything in the portal, but not change it.</div>';
   else if(readOnly)b+='<div class="banner">You can view the portal but not change it. Ask Jonah or Clark to check your email on the Team tab.</div>';
   return b;
+}
+
+/* ---------- v3 helpers ---------- */
+var NICK={jake:"jacob",jacob:"jacob",will:"william",bill:"william",liam:"william",william:"william",matt:"matthew",matthew:"matthew",chris:"christopher",christopher:"christopher",mike:"michael",michael:"michael",nick:"nicholas",nicholas:"nicholas",alex:"alexander",alexander:"alexander",ben:"benjamin",benjamin:"benjamin",sam:"samuel",samuel:"samuel",josh:"joshua",joshua:"joshua",zach:"zachary",zack:"zachary",zachary:"zachary",dan:"daniel",danny:"daniel",daniel:"daniel",tom:"thomas",tommy:"thomas",thomas:"thomas",jim:"james",jimmy:"james",james:"james",joe:"joseph",joey:"joseph",joseph:"joseph",andy:"andrew",drew:"andrew",andrew:"andrew",tony:"anthony",anthony:"anthony",nate:"nathan",nathan:"nathan",nathaniel:"nathan",jon:"jonathan",jonathan:"jonathan",john:"john",johnny:"john",jack:"john",ed:"edward",eddie:"edward",edward:"edward",rob:"robert",bob:"robert",bobby:"robert",robert:"robert",rick:"richard",rich:"richard",richard:"richard",steve:"steven",steven:"steven",stephen:"steven",tim:"timothy",timothy:"timothy",greg:"gregory",gregory:"gregory",pat:"patrick",patrick:"patrick",jeff:"jeffrey",jeffrey:"jeffrey",ken:"kenneth",kenneth:"kenneth",charlie:"charles",chuck:"charles",charles:"charles",theo:"theodore",ted:"theodore",theodore:"theodore",max:"maxwell",maxwell:"maxwell",gabe:"gabriel",gabriel:"gabriel",luke:"luke",lucas:"luke",micah:"micah",isaac:"isaac",ike:"isaac",caleb:"caleb",cal:"caleb"};
+function lev(a,b){if(a===b)return 0;var m=a.length,n=b.length;if(!m)return n;if(!n)return m;var v=[];for(var j=0;j<=n;j++)v[j]=j;for(var i=1;i<=m;i++){var prev=v[0];v[0]=i;for(var k=1;k<=n;k++){var tmp=v[k];v[k]=Math.min(v[k]+1,v[k-1]+1,prev+(a[i-1]===b[k-1]?0:1));prev=tmp;}}return v[n];}
+function nameParts(x){var w=String(x||"").toLowerCase().replace(/[^a-z\s]/g," ").split(/\s+/).filter(Boolean);return {f:w[0]||"",l:w.length>1?w[w.length-1]:""};}
+function similarRushee(name,excludeId){
+  var a=nameParts(name);if(!a.f)return null;var full=norm(name);
+  return arr(S.rushees).find(function(r){if(r.id===excludeId)return false;var b=nameParts(r.name);if(!b.f)return false;
+    if(norm(r.name)===full)return true;
+    if(a.l&&b.l&&a.l===b.l){if((NICK[a.f]||a.f)===(NICK[b.f]||b.f))return true;if(a.f.slice(0,3)===b.f.slice(0,3))return true;if(lev(a.f,b.f)<=1)return true;}
+    if(a.f===b.f&&a.l&&b.l&&lev(a.l,b.l)<=1)return true;
+    return full.length>6&&lev(full,norm(r.name))<=2;})||null;
+}
+function dms(d){if(!d)return 0;var p=String(d).split("-");return new Date(+p[0],+p[1]-1,+p[2]).getTime();}
+function lastContact(rid){
+  var t=0;
+  arr(S.lunches).forEach(function(l){if((l.rusheeIds||[]).indexOf(rid)<0)return;if(l.status==="done")t=Math.max(t,l.doneAt||0,dms(l.date));if(l.reachedAt)t=Math.max(t,l.reachedAt);});
+  arr(S.reachouts).forEach(function(x){if(x.rusheeId===rid)t=Math.max(t,x.at||0);});
+  arr(S.notes).forEach(function(n){if(n.rusheeId===rid&&n.source!=="import")t=Math.max(t,n.createdAt||0);});
+  arr(S.checkins).forEach(function(c){if(c.rusheeId===rid)t=Math.max(t,c.at||0);});
+  var r=S.rushees.get(rid);if(r&&r.lastReplyAt)t=Math.max(t,r.lastReplyAt);
+  return t;
+}
+function goingCold(){
+  var cut=Date.now()-10*86400000;
+  return arr(S.rushees).filter(ACTIVE).map(function(r){var lc=lastContact(r.id);return {r:r,lc:lc};})
+    .filter(function(x){return x.lc?x.lc<cut:(x.r.createdAt||0)<cut;}).sort(function(a,b){return (a.lc||0)-(b.lc||0)||byName(a.r,b.r);});
+}
+function nudges(){
+  var now=Date.now(),out=[];
+  arr(S.lunches).forEach(function(l){if(l.status!=="planned"||l.date)return;
+    var age=now-(l.createdAt||now),since=now-(l.reachedAt||l.createdAt||now);
+    var reason=!l.reachedOut&&age>2*86400000?"Assigned "+ago(l.createdAt)+", hasn’t reached out":(l.reachedOut&&since>3*86400000?"Reached out "+ago(l.reachedAt||l.createdAt)+", no date saved":"");
+    if(!reason)return;
+    (l.teamIds||[]).forEach(function(tid){out.push({l:l,tid:tid,reason:reason});});});
+  return out.sort(function(a,b){return teamName(a.tid).localeCompare(teamName(b.tid));});
+}
+function nudgeHref(n){
+  var tm=S.team.get(n.tid);if(!tm)return "";var g=rName((n.l.rusheeIds||[])[0]).split(" ")[0];var f=tm.name.split(" ")[0];
+  var msg=n.l.reachedOut?"Hey "+f+"! Did you and "+g+" land on a time for lunch? Save it in the BYX Rush Portal once you do. Thanks brother!":"Hey "+f+"! Have you had a chance to reach out to "+g+" yet? You can text him right from the BYX Rush Portal. Thanks brother!";
+  return extText(tm.phone,msg,tm.name);
+}
+function icsHref(l){
+  if(!l.date)return "";var d=l.date.replace(/-/g,"");var t=(l.time||"12:00").replace(":","")+"00";
+  var p=l.date.split("-"),hm=(l.time||"12:00").split(":");var end=new Date(+p[0],+p[1]-1,+p[2],+hm[0],+hm[1]+60);
+  var pad=function(n){return (n<10?"0":"")+n;};var e=end.getFullYear()+pad(end.getMonth()+1)+pad(end.getDate())+"T"+pad(end.getHours())+pad(end.getMinutes())+"00";
+  var who=(l.rusheeIds||[]).map(rName).join(", ");var esc2=function(x){return String(x||"").replace(/[\\,;]/g,function(c){return "\\"+c;}).replace(/\n/g,"\\n");};
+  var ics=["BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//BYX Iota//Rush Portal//EN","BEGIN:VEVENT","UID:"+l.id+"@baylor-byx.github.io","DTSTAMP:"+d+"T000000","DTSTART:"+d+"T"+t,"DTEND:"+e,
+    "SUMMARY:"+esc2((l.kind||"Lunch")+" with "+who),"LOCATION:"+esc2(l.place||""),"DESCRIPTION:"+esc2("BYX rush "+(l.kind||"lunch").toLowerCase()+". Write your note in the Rush Portal after."),"BEGIN:VALARM","TRIGGER:-PT1H","ACTION:DISPLAY","DESCRIPTION:Rush lunch in an hour","END:VALARM","END:VEVENT","END:VCALENDAR"].join("\r\n");
+  return "data:text/calendar;charset=utf-8,"+encodeURIComponent(ics);
+}
+var MATCH_FIELDS=[["hometown","from"],["major","both study"],["church","both go to"]];
+function matchWhy(tm,r){
+  if(!tm||!r)return "";var out=[];
+  MATCH_FIELDS.forEach(function(f){var a=norm(tm[f[0]]||""),b=norm(r[f[0]]||"");if(a&&b&&(a===b||(a.length>3&&b.indexOf(a)>=0)||(b.length>3&&a.indexOf(b)>=0)))out.push(f[1]+" "+(r[f[0]]||tm[f[0]]));});
+  return out.join(", ");
+}
+function oldNotes(){
+  return arr(S.notes).filter(function(n){if(!n.teamId)return false;var tm=S.team.get(n.teamId);return tm&&tm.uid&&n.uid!==tm.uid;});
+}
+function fixOldNotes(btn){
+  var list=oldNotes();if(!list.length){toast("All notes are already linked");return;}
+  btn.disabled=true;var n=0;
+  list.reduce(function(p,x){return p.then(function(){var tm=S.team.get(x.teamId);return updDoc("notes/"+x.id,{uid:tm.uid}).then(function(){n++;});});},Promise.resolve())
+    .then(function(){toast("Linked "+n+" notes to their writers");},function(){toast("Stopped after "+n+". Try again.");btn.disabled=false;});
+}
+function archiveSeason(btn,nextName){
+  var old=S.config.season||"Rush";var stamp=Date.now();
+  var rs=arr(S.rushees).filter(function(r){return r.stage!=="dropped"&&r.stage!=="accepted";});
+  var ls=arr(S.lunches).filter(function(l){return l.status==="planned";});
+  btn.disabled=true;var n=0,tot=rs.length+ls.length;
+  var jobs=rs.map(function(r){return function(){return updDoc("rushees/"+r.id,{stage:"dropped",dropReason:"End of "+old,droppedAt:stamp,droppedBy:"",archivedSeason:old,stageBefore:r.stage||"new"});};})
+    .concat(ls.map(function(l){return function(){return updDoc("lunches/"+l.id,{status:"cancelled",archivedSeason:old});};}));
+  jobs.reduce(function(p,f){return p.then(f).then(function(){n++;btn.textContent="Archiving… "+n+"/"+tot;});},Promise.resolve())
+    .then(function(){var past=(S.config.pastSeasons||[]).concat([{name:old,endedAt:stamp}]);
+      return setDoc("config/main",Object.assign({},S.config,{season:nextName||old,seasonStart:stamp,pastSeasons:past}));})
+    .then(function(){closeModal();toast(old+" archived. Welcome to "+(nextName||"the new season")+".");},function(){toast("Stopped after "+n+" of "+tot+". Run it again to finish.");btn.disabled=false;});
+}
+function vReport(){
+  if(!(isCoord()||me.viewer||me.isOwner))return '<div class="empty">The report is for coordinators and chapter leadership.</div>';
+  var since=S.config.seasonStart||0;var tdy=today();
+  var rs=arr(S.rushees).filter(function(r){return !r.archivedSeason||ACTIVE(r);});
+  var active=rs.filter(ACTIVE);
+  var ls=arr(S.lunches).filter(function(l){return (l.createdAt||dms(l.date))>=since;});
+  var done=ls.filter(function(l){return l.status==="done";});
+  var ns=arr(S.notes).filter(function(n){return (n.createdAt||0)>=since&&n.source!=="import";});
+  var wkAgo=Date.now()-7*86400000;
+  var doneWk=done.filter(function(l){return (l.doneAt||dms(l.date))>=wkAgo;}).length,notesWk=ns.filter(function(n){return (n.createdAt||0)>=wkAgo;}).length;
+  var met={};done.forEach(function(l){(l.rusheeIds||[]).forEach(function(r){met[r]=1;});});
+  var counts={};STAGES.forEach(function(st){counts[st[0]]=0;});rs.forEach(function(r){counts[r.stage||"new"]++;});
+  var ck=arr(S.checkins).filter(function(c){return (c.at||0)>=since;});
+  var rated={};arr(S.notes).forEach(function(n){if(n.rating&&S.rushees.get(n.rusheeId)){(rated[n.rusheeId]=rated[n.rusheeId]||[]).push(n.rating);}});
+  var top=Object.keys(rated).map(function(id){var v=rated[id];return {r:S.rushees.get(id),avg:v.reduce(function(a,b){return a+b;},0)/v.length,n:v.length};})
+    .filter(function(x){return ACTIVE(x.r)||x.r.stage==="accepted"||x.r.stage==="bid";}).sort(function(a,b){return b.avg-a.avg||b.n-a.n;}).slice(0,10);
+  var bro=arr(S.team).map(function(tm){return {t:tm,lu:done.filter(function(l){return (l.teamIds||[]).indexOf(tm.id)>=0;}).length,no:ns.filter(function(n){return n.teamId===tm.id;}).length,
+    tx:arr(S.reachouts).filter(function(x){return x.by===tm.id&&(x.at||0)>=since;}).length};}).sort(function(a,b){return (b.lu*3+b.no*2+b.tx)-(a.lu*3+a.no*2+a.tx)||byName(a.t,b.t);});
+  var weeks=[];var w0=weekOf(tdy);for(var i=5;i>=0;i--){var ws=addDays(w0,-7*i),we=addDays(ws,6);weeks.push({ws:ws,n:done.filter(function(l){var d=l.date||"";return d>=ws&&d<=we;}).length});}
+  var mx=Math.max.apply(null,weeks.map(function(x){return x.n;}).concat([1]));
+  var pd=function(d){var x=d.split("-");return new Date(+x[0],+x[1]-1,+x[2]).toLocaleDateString(undefined,{month:"short",day:"numeric"});};
+  var h='<div class="spread report-head"><div><h2>Recruitment report</h2><div class="small muted">'+esc((S.config.chapter||"Iota Chapter")+" · "+(S.config.season||""))+' · as of '+esc(new Date().toLocaleDateString(undefined,{month:"long",day:"numeric",year:"numeric"}))+'</div></div><button class="btn noprint" data-a="print">Print</button></div>';
+  h+='<div class="tiles"><div class="tile"><span class="num">'+active.length+'</span><span>Active rushees</span></div><div class="tile"><span class="num">'+Object.keys(met).length+'</span><span>Met at least once</span></div>'+
+    '<div class="tile"><span class="num">'+done.length+'</span><span>Lunches done</span></div><div class="tile"><span class="num">'+doneWk+'</span><span>Lunches this week</span></div>'+
+    '<div class="tile"><span class="num">'+ns.length+'</span><span>Notes written</span></div><div class="tile"><span class="num">'+ck.length+'</span><span>Event check-ins</span></div></div>';
+  h+='<div class="grid2"><section class="section"><h3>Pipeline</h3><table class="score"><tbody>'+STAGES.filter(function(st){return st[0]!=="dropped";}).map(function(st){return '<tr><td>'+pill(st[0])+'</td><td class="num">'+counts[st[0]]+'</td></tr>';}).join("")+'</tbody></table></section>'+
+    '<section class="section"><h3>Lunches done by week</h3><div class="wkbars">'+weeks.map(function(x){return '<div class="wkbar"><i style="height:'+Math.round(x.n/mx*100)+'%"></i><b class="num">'+x.n+'</b><small>'+esc(pd(x.ws))+'</small></div>';}).join("")+'</div><div class="small muted">'+notesWk+' notes written in the last 7 days</div></section></div>';
+  h+='<section class="section"><h3>Top-rated rushees</h3>'+(top.length?'<table class="score"><thead><tr><th>Rushee</th><th>Stage</th><th>Avg fit</th><th>Ratings</th></tr></thead><tbody>'+top.map(function(x){return '<tr><td><b role="button" tabindex="0" data-a="open-r" data-id="'+esc(x.r.id)+'" style="cursor:pointer">'+esc(x.r.name)+'</b></td><td>'+pill(x.r.stage)+'</td><td class="num">'+x.avg.toFixed(1)+'</td><td class="num">'+x.n+'</td></tr>';}).join("")+'</tbody></table>':'<div class="empty">No ratings yet.</div>')+'</section>';
+  h+='<section class="section"><h3>Rush team activity this season</h3><table class="score"><thead><tr><th>Brother</th><th>Lunches</th><th>Notes</th><th>Texts</th></tr></thead><tbody>'+bro.map(function(x){return '<tr><td>'+esc(x.t.name)+'</td><td class="num">'+x.lu+'</td><td class="num">'+x.no+'</td><td class="num">'+x.tx+'</td></tr>';}).join("")+'</tbody></table></section>';
+  return h;
 }
 function loadViewers(){
   if(!db)return;db.collection("access").get().then(function(snap){
@@ -506,7 +621,7 @@ function view(){
   if(status==="signin")return signinHTML();
   if(status==="noaccess")return noaccessHTML();
   if(me.viewer&&(ui.route==="me"||ui.route==="plan"||ui.route==="import"))ui.route="board";
-  switch(ui.route){case "status":return vStatus();case "events":return vEvents();case "plan":return vPlan();case "calendar":return vCalendar();case "board":return vBoard();case "rushees":return vRushees();case "lunches":return vLunches();case "team":return vTeam();case "import":return vImport();default:return vMe();}
+  switch(ui.route){case "report":return vReport();case "status":return vStatus();case "events":return vEvents();case "plan":return vPlan();case "calendar":return vCalendar();case "board":return vBoard();case "rushees":return vRushees();case "lunches":return vLunches();case "team":return vTeam();case "import":return vImport();default:return vMe();}
 }
 function pill(stage){var s=STAGE[stage]||STAGE["new"];return '<span class="pill" style="color:'+s.f+';background:'+s.c+'">'+s.l+'</span>';}
 function stars(v){if(v==null)return "";var n=Math.round(v);var h='<span class="stars" title="Fit '+v.toFixed(1)+' of 5">';for(var i=1;i<=5;i++)h+='<i class="'+(i<=n?"on":"")+'"></i>';return h+'</span>';}
@@ -529,6 +644,7 @@ function lunchCard(l,opts){
     } else {
       actions+='<button class="btn sm" data-a="done-l" data-id="'+esc(l.id)+'">Mark done</button>';
       actions+='<button class="btn sm ghost" data-a="resched" data-id="'+esc(l.id)+'">Change time</button>';
+      actions+='<a class="btn sm ghost" href="'+esc(icsHref(l))+'" download="rush-lunch-'+esc(l.date)+'.ics">Add to calendar</a>';
     }
   }
   if(isCoord())actions+='<button class="btn sm ghost" data-a="edit-l" data-id="'+esc(l.id)+'">Edit</button>';
@@ -624,7 +740,7 @@ function vBoard(){
   var need=active.filter(function(r){return !hasLunch(r.id);}).sort(byName);
   var notesWk=arr(S.notes).filter(function(n){return (n.createdAt||0)>=wkAgo;}).length;
   var counts={};STAGES.forEach(function(s){counts[s[0]]=0;});rs.forEach(function(r){counts[r.stage||"new"]=(counts[r.stage||"new"]||0)+1;});
-  var h='<div class="spread"><h2>Rush board</h2>'+(isCoord()?'<div class="row"><a class="btn" href="#import">Import sheet</a><a class="btn" href="#plan">Plan a week</a><button class="btn primary" data-a="new-l">+ Assign lunch</button></div>':"")+'</div>';
+  var h='<div class="spread"><h2>Rush board</h2>'+(isCoord()?'<div class="row"><a class="btn ghost" href="#report">Report</a><a class="btn" href="#import">Import sheet</a><a class="btn" href="#plan">Plan a week</a><button class="btn primary" data-a="new-l">+ Assign lunch</button></div>':(me.viewer||me.isOwner?'<a class="btn primary" href="#report">Recruitment report</a>':""))+'</div>';
   var thisWk=weekOf(tdy);
   var left=arr(S.lunches).filter(function(l){return l.status==="planned"&&!l.date&&l.week&&weekOf(l.week)<thisWk;}).sort(function(a,b){return rName((a.rusheeIds||[])[0]).localeCompare(rName((b.rusheeIds||[])[0]));});
   if(isCoord()&&left.length){
@@ -642,11 +758,15 @@ function vBoard(){
     h+='<section class="section"><div class="spread"><h3>Needs your review <span class="badge" style="vertical-align:middle">'+subs.length+'</span></h3>'+(okLunches>1?'<button class="btn sm primary" data-a="sub-approve-all">Approve all '+okLunches+' lunches</button>':'')+'</div>'+subs.map(function(x){
       var who=teamName(x.by);var body;
       if(x.type==="lunch")body='<b>Lunch logged: '+esc(rName(x.rusheeId))+'</b>'+(x.rating?' '+stars(x.rating):'')+'<div class="small muted">'+esc(fmtDate(x.date))+(x.place?" · "+esc(x.place):"")+' · submitted by '+esc(who)+' '+esc(ago(x.createdAt))+'</div>'+(x.note?'<div class="small" style="white-space:pre-wrap">"'+esc(x.note)+'"</div>':'')+(lunchDup(x)?'<div class="small" style="color:var(--warn)">Possible duplicate: same brother, guy and date is already logged. Approve all skips this one.</div>':'');
-      else{var dup=arr(S.rushees).find(function(r){return norm(r.name)===norm(x.name);});
-        body='<b>New PNM: '+esc(x.name)+'</b><div class="small muted">'+esc([x.year,x.phone].filter(Boolean).join(" · ")||"No details")+' · suggested by '+esc(who)+' '+esc(ago(x.createdAt))+'</div>'+(x.note?'<div class="small" style="white-space:pre-wrap">"'+esc(x.note)+'"</div>':'')+(dup?'<div class="small" style="color:var(--warn)">Heads up: '+esc(dup.name)+' is already on the list.</div>':'');}
+      else{var dup=similarRushee(x.name,null);
+        body='<b>New PNM: '+esc(x.name)+'</b><div class="small muted">'+esc([x.year,x.phone].filter(Boolean).join(" · ")||"No details")+' · suggested by '+esc(who)+' '+esc(ago(x.createdAt))+'</div>'+(x.note?'<div class="small" style="white-space:pre-wrap">"'+esc(x.note)+'"</div>':'')+(dup?'<div class="small" style="color:var(--warn)">Heads up: '+(norm(dup.name)===norm(x.name)?esc(dup.name)+' is already on the list.':'is this '+esc(dup.name)+', who’s already on the list?')+'</div>':'');}
       return '<div class="sub">'+body+'<div class="row"><button class="btn sm primary" data-a="sub-approve" data-id="'+esc(x.id)+'">Approve</button><button class="btn sm ghost" data-a="sub-reject" data-id="'+esc(x.id)+'">'+(x.type==="lunch"?"Reject":"Don't add")+'</button></div></div>';
     }).join("")+'</section>';
   }
+  if(isCoord()){var nds=nudges();if(nds.length)h+='<section class="section"><h3>Needs a nudge <span class="badge" style="vertical-align:middle">'+nds.length+'</span></h3><p class="small muted" style="margin:0">Assignments that have stalled. One tap opens a friendly text to the brother.</p><div class="list">'+nds.slice(0,30).map(function(n){var hr=nudgeHref(n);
+      return '<div class="item" style="cursor:default"><span class="main"><b>'+esc(teamName(n.tid))+' → '+esc(rName((n.l.rusheeIds||[])[0]))+'</b><small>'+esc(n.reason)+'</small></span><span class="side">'+(hr?'<a class="btn sm" href="'+esc(hr)+'">Nudge '+esc(teamName(n.tid).split(" ")[0])+'</a>':'<span class="tag">No number</span>')+'</span></div>';}).join("")+'</div></section>';}
+  if(isCoord()||me.viewer||me.isOwner){var gc=goingCold();if(gc.length)h+='<section class="section"><h3>Going cold <span class="badge" style="vertical-align:middle">'+gc.length+'</span></h3><p class="small muted" style="margin:0">Active guys no one has contacted in 10+ days.</p><div class="list">'+gc.slice(0,15).map(function(x){
+      return '<div class="item" style="cursor:default">'+avatarHTML(x.r)+'<span class="main"><b role="button" tabindex="0" data-a="open-r" data-id="'+esc(x.r.id)+'" style="cursor:pointer">'+esc(x.r.name)+'</b><small>'+(x.lc?"Last contact "+esc(ago(x.lc)):"Never contacted")+' · '+esc((STAGE[x.r.stage||"new"]||{}).l||"")+'</small></span>'+(isCoord()&&!hasLunch(x.r.id)?'<span class="side"><button class="btn sm" data-a="new-l" data-rid="'+esc(x.r.id)+'">Assign</button></span>':'')+'</div>';}).join("")+'</div>'+(gc.length>15?'<div class="muted small">+'+(gc.length-15)+' more</div>':'')+'</section>';}
   h+='<div class="tiles"><div class="tile"><span class="num">'+active.length+'</span><span>Active rushees</span></div>'+
      '<div class="tile"><span class="num">'+weekL.length+'</span><span>Lunches next 7 days</span></div>'+
      '<div class="tile"><span class="num">'+arr(S.lunches).filter(function(l){return l.status==="planned"&&!l.date;}).length+'</span><span>Assigned, not scheduled</span></div>'+
@@ -671,19 +791,19 @@ function vBoard(){
 
 /* Rushees */
 function filteredRushees(){
-  var q=norm(ui.q);
+  var q=norm(ui.q);var noteText={};if(q)arr(S.notes).forEach(function(n){noteText[n.rusheeId]=(noteText[n.rusheeId]||"")+" "+(n.text||"");});
   return arr(S.rushees).filter(function(r){
     if(ui.stage==="nolunch"){if(!ACTIVE(r)||hasLunch(r.id))return false;}
     else if(ui.stage!=="all"&&(r.stage||"new")!==ui.stage)return false;
     if(ui.tag&&(r.tags||[]).indexOf(ui.tag)<0)return false;
     if(!q)return true;
-    return norm([r.name,r.major,r.hometown,r.year,r.referredBy,r.church,r.dorm,(r.tags||[]).join(" "),(r.extra&&r.extra["Previous notes"])||""].join(" ")).indexOf(q)>=0;
+    return norm([r.name,r.major,r.hometown,r.year,r.referredBy,r.church,r.dorm,r.interests,r.avoid,(r.tags||[]).join(" "),r.extra?Object.keys(r.extra).map(function(k){return r.extra[k];}).join(" "):"",noteText[r.id]||""].join(" ")).indexOf(q)>=0;
   }).sort(byName);
 }
 function rusheeListHTML(){var l=filteredRushees();return l.length?'<div class="list">'+l.map(rusheeItem).join("")+'</div><div class="muted small">'+l.length+' shown</div>':'<div class="empty">No rushees match.</div>';}
 function vRushees(){
   var h='<div class="spread"><h2>Rushees <span class="muted num" style="font-size:16px">'+S.rushees.size+'</span></h2><span class="seg"><a href="#rushees" aria-current="page">List</a><a href="#status">Status</a></span>'+(isCoord()?'<div class="row"><a class="btn" href="#import">Import sheet</a><button class="btn primary" data-a="new-r">+ Add rushee</button></div>':"")+'</div>';
-  h+='<input type="search" id="rsearch" placeholder="Search name, major, hometown, referral…" value="'+esc(ui.q)+'" aria-label="Search rushees">';
+  h+='<input type="search" id="rsearch" placeholder="Search names, notes, hometown, major, church…" value="'+esc(ui.q)+'" aria-label="Search rushees">';
   var tg=allTags().slice(0,14);
   var tagRow=tg.length?'<div class="filters"><button data-a="tag-filter" data-v="" aria-pressed="'+(!ui.tag)+'">All tags</button>'+tg.map(function(x){return '<button data-a="tag-filter" data-v="'+esc(x[0])+'" aria-pressed="'+(ui.tag===x[0])+'">#'+esc(x[0])+' <span class="num" style="opacity:.7">'+x[1]+'</span></button>';}).join("")+'</div>':"";
   var f=[["all","All"],["nolunch","Not assigned"]].concat(STAGES.map(function(s){return [s[0],s[1]];}));
@@ -827,7 +947,7 @@ function buildPlan(p){
   cands.forEach(function(r){
     var met={};lunchesFor(r.id).forEach(function(l){(l.teamIds||[]).forEach(function(t){met[t]=1;});});
     var pick=null;
-    bros.slice().sort(function(a,b){return (met[a.id]?1:0)-(met[b.id]?1:0)||load[a.id]-load[b.id]||byName(a,b);}).some(function(t){if(load[t.id]<p.per){pick=t.id;return true;}return false;});
+    bros.slice().sort(function(a,b){return (met[a.id]?1:0)-(met[b.id]?1:0)||(matchWhy(b,r)?1:0)-(matchWhy(a,r)?1:0)||load[a.id]-load[b.id]||byName(a,b);}).some(function(t){if(load[t.id]<p.per){pick=t.id;return true;}return false;});
     if(pick){load[pick]++;rows.push({rid:r.id,tid:pick,on:true});}
     else rows.push({rid:r.id,tid:"",on:false});
   });
@@ -849,7 +969,7 @@ function vPlan(){
   if(p.rows.length){
     h+='<div class="tablewrap"><table class="plantable"><thead><tr><th>Include</th><th>Rushee</th><th>Last lunch</th><th>Brother</th></tr></thead><tbody>'+p.rows.map(function(row,i){
       var r=S.rushees.get(row.rid);if(!r)return "";var ll=lastLunch(r.id);
-      return '<tr><td><input type="checkbox" data-change="plan-on" data-i="'+i+'"'+(row.on?" checked":"")+' style="accent-color:var(--purple);width:18px;height:18px" aria-label="Include '+esc(r.name)+'"></td><td><b>'+esc(r.name)+'</b><br>'+pill(r.stage)+'</td><td class="small muted">'+(ll?esc(fmtDate(ll.date))+" with "+esc((ll.teamIds||[]).map(function(t){return teamName(t).split(" ")[0];}).join(", ")):"Never")+'</td><td><select data-change="plan-bro" data-i="'+i+'" aria-label="Brother for '+esc(r.name)+'"><option value="">Pick a brother</option>'+bros.map(function(t){return '<option value="'+esc(t.id)+'"'+(row.tid===t.id?" selected":"")+'>'+esc(t.name)+'</option>';}).join("")+'</select></td></tr>';
+      return '<tr><td><input type="checkbox" data-change="plan-on" data-i="'+i+'"'+(row.on?" checked":"")+' style="accent-color:var(--purple);width:18px;height:18px" aria-label="Include '+esc(r.name)+'"></td><td><b>'+esc(r.name)+'</b><br>'+pill(r.stage)+'</td><td class="small muted">'+(ll?esc(fmtDate(ll.date))+" with "+esc((ll.teamIds||[]).map(function(t){return teamName(t).split(" ")[0];}).join(", ")):"Never")+'</td><td><select data-change="plan-bro" data-i="'+i+'" aria-label="Brother for '+esc(r.name)+'"><option value="">Pick a brother</option>'+bros.map(function(t){return '<option value="'+esc(t.id)+'"'+(row.tid===t.id?" selected":"")+'>'+esc(t.name)+'</option>';}).join("")+'</select>'+(matchWhy(S.team.get(row.tid),r)?'<div class="small" style="color:var(--good)">Both '+esc(matchWhy(S.team.get(row.tid),r).replace(/^both /,""))+'</div>':'')+'</td></tr>';
     }).join("")+'</tbody></table></div>';
   } else h+='<div class="empty">Every active rushee already has an open assignment.</div>';
   if(p.progress!=null)h+='<div class="progress"><i style="width:'+Math.round(p.progress*100)+'%"></i></div>';
@@ -917,7 +1037,7 @@ function vTeam(){
       var done=arr(S.lunches).filter(function(l){return l.status==="done"&&(l.teamIds||[]).indexOf(x.id)>=0;}).length;
       var ns=arr(S.notes).filter(function(n){return n.teamId===x.id;}).length;
       return '<div class="item" style="cursor:default"><span class="avatar">'+esc(initials(x.name))+'</span><span class="main"><b>'+esc(x.name)+(t&&t.id===x.id?' <span class="tag">You</span>':"")+'</b><small>'+esc(ROLES[x.role]||"Rush team")+' · '+(x.uid?"Signed in":(x.email?"Hasn't signed in yet":"Needs a sign-in email"))+'</small></span>'+
-        '<span class="side"><small class="small muted"><span class="num">'+up+'</span> open · <span class="num">'+done+'</span> done · <span class="num">'+ns+'</span> notes</small>'+(isCoord()?'<button class="btn sm ghost" data-a="edit-t" data-id="'+esc(x.id)+'">Edit</button>':"")+'</span></div>';
+        '<span class="side"><small class="small muted"><span class="num">'+up+'</span> open · <span class="num">'+done+'</span> done · <span class="num">'+ns+'</span> notes</small>'+(isCoord()&&!x.email&&normPhone(x.phone)?'<a class="btn sm" href="'+esc(extText(x.phone,"Hey "+x.name.split(" ")[0]+"! We’re using a new BYX Rush Portal. Reply with the email you want to sign in with (a Gmail works best).",x.name))+'">Ask for email</a>':"")+(isCoord()?'<button class="btn sm ghost" data-a="edit-t" data-id="'+esc(x.id)+'">Edit</button>':"")+'</span></div>';
     }).join("")+'</div>';
   } else h+='<div class="empty">No one on the roster yet. Start on the My rush tab.</div>';
   h+='<div class="row"><span class="small muted">Signed in as '+esc(me.email||"")+'</span><button class="btn sm ghost" data-a="signout">Sign out</button></div>';
@@ -927,8 +1047,10 @@ function vTeam(){
       (S.viewers&&S.viewers.length?'<div class="list">'+S.viewers.map(function(v){return '<div class="item" style="cursor:default"><span class="main"><b>'+esc(v.name||v.id)+'</b><small>'+esc(v.id)+(v.title?' · '+esc(v.title):'')+'</small></span><span class="side"><button class="btn sm ghost" data-a="del-viewer" data-id="'+esc(v.id)+'">Remove</button></span></div>';}).join("")+'</div>':'<div class="small muted">No one yet.</div>')+
       '<form data-form="viewer" class="fields"><div class="field"><label for="v-name">Name</label><input id="v-name" name="name" required placeholder="Luke Harbour"></div><div class="field"><label for="v-title">Title</label><input id="v-title" name="title" placeholder="Leadership Coordinator"></div><div class="field"><label for="v-email">Sign-in email</label><input type="email" id="v-email" name="email" required autocomplete="off"></div><div class="row" style="align-self:end"><button class="btn primary" type="submit">Give view access</button></div></form></div>';
   }
+  if(isCoord()){var on2=oldNotes().length;if(on2)h+='<div class="card"><h3>Link old notes</h3><p class="small muted" style="margin:0">'+on2+' note'+(on2===1?"":"s")+' from the old portal aren’t linked to the brother who wrote them yet, so he can’t edit them. Brothers must have signed in once first.</p><div class="row"><button class="btn" data-a="fix-notes">Link '+on2+' note'+(on2===1?"":"s")+'</button></div></div>';}
+  if(isCoord())h+='<div class="card"><h3>End this rush season</h3><p class="small muted" style="margin:0">When rush is over: every guy who didn’t accept is moved to Dropped (“End of '+esc(S.config.season||"this season")+'”), open assignments are cancelled, and the Board and report start fresh. Every note, lunch and profile stays searchable, and anyone can be brought back. Download a full backup first.</p><div class="row"><button class="btn danger ghost" data-a="season-end">End '+esc(S.config.season||"season")+'…</button></div>'+((S.config.pastSeasons||[]).length?'<div class="small muted">Past seasons: '+esc(S.config.pastSeasons.map(function(x){return x.name;}).join(", "))+'</div>':'')+'</div>';
   if(isCoord()&&dlApi)h+='<div class="card"><h3>Backup</h3><p class="small muted" style="margin:0">Download everything (rushees, lunches, notes, events, attendance, texts and the team) as an Excel file. Good to do once a week during rush.</p><div class="row"><button class="btn" data-a="backup">Download backup (.xlsx)</button></div></div>';
-  if(false)h+='<div class="card"><h3>Move to the new app</h3><p class="small muted" style="margin:0">Exports every record (with photos) as one file for the standalone portal’s import tool. Only needed on moving day.</p><div class="row"><button class="btn" data-a="export-json">Export everything (.json)</button></div></div>';
+  if(isCoord()&&dlApi)h+='<div class="card"><h3>Full backup</h3><p class="small muted" style="margin:0">Everything, photos included, in one file that can fully restore the portal (owner: app/import.html). Keep it private.</p><div class="row"><button class="btn" data-a="export-json">Download full backup (.json)</button></div></div>';
   if(isCoord()){
     h+='<form class="card" data-form="config"><h3>Portal header</h3><div class="fields"><div class="field"><label for="chapter">Chapter</label><input type="text" id="chapter" name="chapter" value="'+esc(S.config.chapter||"Iota Chapter")+'"></div><div class="field"><label for="season">Season</label><input type="text" id="season" name="season" value="'+esc(S.config.season||"")+'"></div><div class="field"><label for="textlink">Text launcher link (https://…)</label><input type="text" id="textlink" name="textLink" placeholder="Leave blank to use copy and paste" value="'+esc(S.config.textLink||"")+'"></div></div><div class="row"><button class="btn" type="submit">Save</button></div></form>';
   }
@@ -1187,6 +1309,12 @@ function modalHTML(){
       '<div class="field"><label>How strong a fit? (1 = not a fit, 5 = give him a bid)</label><div class="rate">'+[1,2,3,4,5].map(function(n){return '<label><input type="radio" name="rating" value="'+n+'"><span>'+n+'</span></label>';}).join("")+'</div></div>'+
       '<div class="field"><label for="sl-n">How did it go?</label><textarea id="sl-n" name="note" placeholder="This becomes your note on his profile once approved."></textarea></div>'+
       '<div class="row"><button class="btn primary" type="submit">Submit for review</button></div></form>';
+  } else if(m.type==="season"){
+    h+='<form class="section" data-form="season"><div class="spread"><h2>End '+esc(S.config.season||"this season")+'</h2><button type="button" class="btn sm ghost" data-a="close-modal">Cancel</button></div>'+
+      '<p style="margin:0">'+arr(S.rushees).filter(function(r){return r.stage!=="dropped"&&r.stage!=="accepted";}).length+' guys move to Dropped and '+arr(S.lunches).filter(function(l){return l.status==="planned";}).length+' open assignments are cancelled. Notes and history stay.</p>'+
+      '<div class="field"><label for="se-next">Name of the next season</label><input id="se-next" name="next" required placeholder="Fall 2027 Rush"></div>'+
+      '<div class="field"><label for="se-ok">Type END to confirm</label><input id="se-ok" name="ok" required autocomplete="off"></div>'+
+      '<div class="row"><button class="btn danger" type="submit">Archive the season</button></div></form>';
   } else if(m.type==="sublogged"){
     var nLogged=arr(S.submissions).filter(function(x){return x.type==="lunch"&&x.status==="pending"&&x.uid===me.id;}).length;
     var cs2=coordinators();var gx2=extGroup(cs2.map(function(c){return c.phone;}),"Hey "+cs2.map(function(c){return c.name.split(" ")[0];}).join(" and ")+"! I logged "+(nLogged===1?"a lunch":nLogged+" lunches")+" in the BYX Rush Portal for you to review.","Jonah & Clark");
@@ -1247,7 +1375,10 @@ function modalHTML(){
       '<div class="fields"><div class="field"><label for="t-name">Name *</label><input type="text" id="t-name" name="name" required value="'+esc(t.name||"")+'"></div>'+
       '<div class="field"><label for="t-role">Role</label><select id="t-role" name="role"><option value="member"'+(t.role!=="coordinator"?" selected":"")+'>Rush team</option><option value="coordinator"'+(t.role==="coordinator"?" selected":"")+'>Coordinator</option></select></div>'+
       '<div class="field"><label for="t-phone">Phone</label><input type="tel" id="t-phone" name="phone" value="'+esc(t.phone||"")+'"></div>'+
-      '<div class="field"><label for="t-email">Sign-in email</label><input type="email" id="t-email" name="email" autocomplete="off" placeholder="The email he signs in with" value="'+esc(t.email||"")+'"></div></div>'+
+      '<div class="field"><label for="t-email">Sign-in email</label><input type="email" id="t-email" name="email" autocomplete="off" placeholder="The email he signs in with" value="'+esc(t.email||"")+'"></div>'+
+      '<div class="field"><label for="t-home">Hometown</label><input id="t-home" name="hometown" value="'+esc(t.hometown||"")+'" placeholder="For better lunch matches"></div>'+
+      '<div class="field"><label for="t-major">Major</label><input id="t-major" name="major" value="'+esc(t.major||"")+'"></div>'+
+      '<div class="field"><label for="t-church">Church</label><input id="t-church" name="church" value="'+esc(t.church||"")+'"></div></div>'+
       '<div class="spread">'+(m.id?'<div class="row">'+(t.uid?'<button type="button" class="btn ghost" data-a="unlink-t" data-id="'+esc(m.id)+'">Unlink sign-in</button>':"")+'<button type="button" class="btn danger ghost" data-a="del-t" data-id="'+esc(m.id)+'">Remove</button></div>':'<span></span>')+'<button class="btn primary" type="submit">Save</button></div></form>';
   }
   return h+'</div></div>';
@@ -1336,9 +1467,13 @@ document.addEventListener("click",function(e){
       var i=0;var nx=function(){if(i>=ls.length){toast("Carried "+ls.length+" over to this week");return;}var l=ls[i++];db.doc("lunches/"+l.id).update({week:wk}).then(nx,nx);};nx();})();break;
     case "drop-open":ui.modal={type:"drop",id:id};render();break;
     case "merge-open":ui.modal={type:"merge",id:id};render();focusFirst();break;
-    case "undrop":(function(){var r=S.rushees.get(id);if(!r)return;var had=lunchesFor(id).some(function(l){return l.status==="done";});updDoc("rushees/"+id,{stage:had?"met":"new",dropReason:"",droppedAt:null,droppedBy:""}).then(function(){toast(r.name.split(" ")[0]+" is back on the list");});})();break;
+    case "undrop":(function(){var r=S.rushees.get(id);if(!r)return;var had=lunchesFor(id).some(function(l){return l.status==="done";});updDoc("rushees/"+id,{stage:r.stageBefore||(had?"met":"new"),dropReason:"",droppedAt:null,droppedBy:"",archivedSeason:null,stageBefore:null}).then(function(){toast(r.name.split(" ")[0]+" is back on the list");});})();break;
     case "backup":runBackup(el);break;
+    case "export-json":runExport(el);break;
     case "signin-google":signInGoogle();break;
+    case "print":window.print();break;
+    case "fix-notes":fixOldNotes(el);break;
+    case "season-end":ui.modal={type:"season"};render();break;
     case "signin-email-show":authUI.email=true;authUI.err="";render();break;
     case "signin-reset":resetPassword();break;
     case "signout":firebase.auth().signOut();break;
@@ -1430,6 +1565,9 @@ document.addEventListener("submit",function(e){
     var m=ui.modal;var data={};FIELDS.forEach(function(x){if(x[0]!=="first"&&x[0]!=="last")data[x[0]]=String(fd.get(x[0])||"").trim();});data.phone=cleanPhone(data.phone);
     data.stage=fd.get("stage")||"new";
     if(!data.name){toast("Name is required");done();return;}
+    var sim=similarRushee(data.name,m.id||null);
+    if(sim&&ui.dupOk!==norm(data.name)){ui.dupOk=norm(data.name);toast("Looks like "+sim.name+" is already on the list. Tap Save again to add anyway.");done();return;}
+    ui.dupOk="";
     if(m.id){updDoc("rushees/"+m.id,data).then(function(){closeModal();toast("Saved");},done);}
     else{data.createdAt=Date.now();data.createdBy=t?t.id:"";data.pointId="";data.extra={};var nid=newId("r");
       setDoc("rushees/"+nid,data).then(function(){ui.modal=null;ui.drawer={id:nid};render();toast("Rushee added");},done);}
@@ -1445,6 +1583,9 @@ document.addEventListener("submit",function(e){
         rids.forEach(function(rid){var r=S.rushees.get(rid);if(r&&(r.stage||"new")==="new")updDoc("rushees/"+rid,{stage:"met"}).catch(function(){});});
         if(tids.length){ui.modal={type:"textprompt",lunch:Object.assign({id:nlid},data2)};render();}else closeModal();
         toast("Lunch assigned");},done);}
+  } else if(kind==="season"){
+    if(String(fd.get("ok")||"").trim().toUpperCase()!=="END"){toast("Type END to confirm");done();return;}
+    var sb=e.target.querySelector('button[type="submit"]');archiveSeason(sb||{},String(fd.get("next")||"").trim());
   } else if(kind==="viewer"){
     var ve=String(fd.get("email")||"").trim().toLowerCase(),vn=String(fd.get("name")||"").trim(),vt=String(fd.get("title")||"").trim();
     if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(ve)){toast("That email doesn't look right");done();return;}
@@ -1455,7 +1596,7 @@ document.addEventListener("submit",function(e){
     var a=firebase.auth();authUI.err="";
     (mode==="up"?a.createUserWithEmailAndPassword(em,pw).then(function(c){return c.user.sendEmailVerification();}):a.signInWithEmailAndPassword(em,pw)).catch(function(er){authUI.err=authErr(er);render();});
   } else if(kind==="team"){
-    var m3=ui.modal;var data3={name:String(fd.get("name")||"").trim(),role:fd.get("role")||"member",phone:cleanPhone(fd.get("phone")),email:String(fd.get("email")||"").trim().toLowerCase()};
+    var m3=ui.modal;var data3={name:String(fd.get("name")||"").trim(),role:fd.get("role")||"member",phone:cleanPhone(fd.get("phone")),email:String(fd.get("email")||"").trim().toLowerCase(),hometown:String(fd.get("hometown")||"").trim(),major:String(fd.get("major")||"").trim(),church:String(fd.get("church")||"").trim()};
     if(!data3.name){toast("Name is required");done();return;}
     if(data3.email&&!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(data3.email)){toast("That email doesn't look right");done();return;}
     var dupE=data3.email&&arr(S.team).find(function(x){return x.id!==m3.id&&String(x.email||"").toLowerCase()===data3.email;});
@@ -1500,6 +1641,9 @@ document.addEventListener("submit",function(e){
     if(!t){toast("Pick your name on My rush first");done();return;}
     var ex2=arr(S.rushees).find(function(x){return norm(x.name)===norm(pn);});
     if(ex2){toast(ex2.name+" is already on the list.");done();return;}
+    var sim2=similarRushee(pn,null);
+    if(sim2&&ui.dupOk!==norm(pn)){ui.dupOk=norm(pn);toast("Is this "+sim2.name+"? He’s already on the list. Tap Submit again if it’s someone else.");done();return;}
+    ui.dupOk="";
     var spd={type:"pnm",status:"pending",by:t.id,name:pn,phone:cleanPhone(fd.get("phone")),year:fd.get("year")||"",note:String(fd.get("note")||"").trim(),createdAt:Date.now()};
     setDoc("submissions/"+newId("s"),spd).then(function(){ui.modal={type:"notifycoords",msg:"Hey "+coordinators().map(function(c){return c.name.split(" ")[0];}).join(" and ")+"! "+t.name.split(" ")[0]+" suggested a new PNM, "+pn+", in the BYX Rush Portal. Can you review him when you get a chance?"};render();},done);
   } else if(kind==="tag"){
@@ -1583,7 +1727,7 @@ function runExport(btn){
   var jobs=out.collections.rushees.filter(function(r){return r.photo;}).map(function(r){return toData(r.photo).then(function(d){r.photoData=d;},function(){missed++;});});
   Promise.all(jobs).then(function(){
     var counts=Object.keys(out.collections).map(function(k){return out.collections[k].length+" "+k;}).join(", ");
-    return dlApi.save({filename:"BYX Rush Portal export "+today()+".json",data:new Blob([JSON.stringify(out)],{type:"application/json"})}).then(function(){toast("Exported "+counts+(missed?" ("+missed+" photos skipped)":""));});
+    return dlApi.save({filename:"BYX Rush Portal full backup "+today()+".json",data:new Blob([JSON.stringify(out)],{type:"application/json"})}).then(function(){toast("Exported "+counts+(missed?" ("+missed+" photos skipped)":""));});
   }).catch(function(e){if(!(e&&e.code==="declined"))toast("Couldn't export. Try again.");}).then(function(){btn.disabled=false;});
 }
 function lunchDup(x){
@@ -1687,12 +1831,14 @@ function resetPassword(){var el=document.getElementById("si-email");var em=el&&e
   firebase.auth().sendPasswordResetEmail(em).then(function(){authUI.err="Check your email for a reset link.";render();},function(e){authUI.err=authErr(e);render();});}
 function boot(){
   ui.route=(location.hash||"#me").slice(1)||"me";
-  if(TABS.map(function(x){return x[0];}).concat(["import","lunches","plan","status"]).indexOf(ui.route)<0)ui.route="me";
+  if(TABS.map(function(x){return x[0];}).concat(["import","lunches","plan","status","report"]).indexOf(ui.route)<0)ui.route="me";
   render();
   var cfg=window.BYX_FIREBASE;
   if(!window.firebase||!cfg||!cfg.apiKey||/PASTE/.test(cfg.apiKey)){status="offline";render();return;}
   firebase.initializeApp(cfg);
   var fs=firebase.firestore();
+  if("serviceWorker" in navigator&&location.protocol==="https:")navigator.serviceWorker.register("sw.js").catch(function(){});
+  window.addEventListener("online",function(){render();});window.addEventListener("offline",function(){render();});
   try{fs.enablePersistence({synchronizeTabs:true}).catch(function(){});}catch(e){}
   dlApi={save:function(o){var url=URL.createObjectURL(o.data);var a=document.createElement("a");a.href=url;a.download=o.filename||"download";document.body.appendChild(a);a.click();setTimeout(function(){URL.revokeObjectURL(url);a.remove();},1500);return Promise.resolve();}};
   var owners=(window.BYX_OWNERS||[]).map(function(x){return String(x).toLowerCase();});
@@ -1716,7 +1862,7 @@ function boot(){
         unsubs.push(fs.collection(name).onSnapshot(function(snap){
           var m=new Map();snap.docs.forEach(function(d){m.set(d.id,Object.assign({},d.data(),{id:d.id}));});
           S[name]=m;S.loaded[name]=true;
-          if(!snap.metadata.fromCache&&status!=="live"&&status.indexOf("err")!==0){clearTimeout(timer);status="live";}
+          if((!snap.metadata.fromCache||navigator.onLine===false)&&status!=="live"&&status.indexOf("err")!==0){clearTimeout(timer);status="live";}
           if(name==="team"){var t=myTeam();if(t&&t.uid!==me.id&&String(t.email||"").toLowerCase()===me.email)fs.doc("team/"+t.id).update({uid:me.id}).catch(function(){});}
           scheduleRender();
         },fail));
