@@ -31,7 +31,8 @@
 (function(){
   // Data rides in the #fragment, which browsers never send to the server.
   var h=new URLSearchParams(location.hash.slice(1));
-  var n=(h.get("n")||"").replace(/[^0-9+]/g,"");
+  var list=(h.get("n")||"").split(",").map(function(x){return x.replace(/[^0-9+]/g,"");}).filter(Boolean);
+  var n=list.join(", ");
   var m=h.get("m")||"";
   var name=h.get("to")||"";
   if(!n){document.getElementById("title").textContent="No number was sent";document.getElementById("go").style.display="none";return;}
@@ -39,7 +40,9 @@
   document.getElementById("num").textContent=n;
   document.getElementById("msg").textContent=m;
   var ios=/iP(hone|ad|od)/.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);
-  var href="sms:"+n+(m?(ios?"&body=":"?body=")+encodeURIComponent(m):"");
+  var href;
+  if(list.length>1){href=ios?"sms://open?addresses="+list.join(",")+(m?"&body="+encodeURIComponent(m):""):"sms:"+list.join(",")+(m?"?body="+encodeURIComponent(m):"");}
+  else href="sms:"+list[0]+(m?(ios?"&body=":"?body=")+encodeURIComponent(m):"");
   var go=document.getElementById("go");go.href=href;
   setTimeout(function(){location.href=href;},150);
 })();
