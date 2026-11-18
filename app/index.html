@@ -246,6 +246,7 @@ input[type=text],input[type=tel],input[type=date],input[type=time],input[type=se
   width:100%;background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:9px 11px;font-size:15px}
 input:focus,select:focus,textarea:focus{border-color:var(--accent);outline:none;box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 20%,transparent)}
 textarea{min-height:84px;resize:vertical}
+textarea.msgedit{min-height:96px;font-size:15px;line-height:1.4;background:var(--paper,#fff)}
 .fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
 .checks{display:flex;flex-direction:column;max-height:220px;overflow:auto;border:1px solid var(--line);border-radius:9px;background:var(--panel)}
 .checks label{display:flex;gap:9px;align-items:center;padding:8px 11px;border-top:1px solid var(--line);cursor:pointer;font-size:14px}
@@ -343,6 +344,14 @@ function weekOf(s){var p=s.split("-");var d=new Date(+p[0],+p[1]-1,+p[2]);d.setD
 function addDays(s,n){var p=s.split("-");var d=new Date(+p[0],+p[1]-1,+p[2]);d.setDate(d.getDate()+n);return iso(d);}
 function fmtDate(s){if(!s)return "To schedule";var t=today();if(s===t)return "Today";if(s===addDays(t,1))return "Tomorrow";if(s===addDays(t,-1))return "Yesterday";
   var p=s.split("-");var d=new Date(+p[0],+p[1]-1,+p[2]);return d.toLocaleDateString(undefined,{weekday:"short",month:"short",day:"numeric"});}
+function shortTime(t){if(!t)return "";var p=t.split(":");var h=+p[0];var ap=h>=12?"pm":"am";h=h%12||12;return h+(p[1]&&p[1]!=="00"?":"+p[1]:"")+ap;}
+function dayPhrase(s,t){if(!s)return "";var td=today();var night=t&&+t.split(":")[0]>=17;
+  if(s===td)return night?"tonight":"today";if(s===addDays(td,1))return night?"tomorrow night":"tomorrow";
+  var p=s.split("-");var d=new Date(+p[0],+p[1]-1,+p[2]);var diff=Math.round((d-new Date(+td.slice(0,4),+td.slice(5,7)-1,+td.slice(8,10)))/86400000);
+  var wd=d.toLocaleDateString("en-US",{weekday:"long"});
+  if(diff>1&&diff<7)return "this "+wd;
+  return wd+", "+d.toLocaleDateString("en-US",{month:"long",day:"numeric"});}
+function whenPhrase(s,t,place){return [dayPhrase(s,t),t?"at "+shortTime(t):"",place?"at "+place:""].filter(Boolean).join(" ");}
 function fmtTime(t){if(!t)return "";var p=t.split(":");var h=+p[0];var ap=h>=12?"PM":"AM";h=h%12||12;return h+":"+p[1]+" "+ap;}
 function ago(ts){if(!ts)return "";var d=Math.round((Date.now()-ts)/86400000);if(d<=0)return "today";if(d===1)return "yesterday";if(d<30)return d+"d ago";return new Date(ts).toLocaleDateString(undefined,{month:"short",day:"numeric"});}
 function initials(n){return String(n||"?").trim().split(/\s+/).slice(0,2).map(function(w){return w[0]||"";}).join("").toUpperCase()||"?";}
@@ -378,10 +387,14 @@ function pnmStatus(rid){
     done:ls.filter(function(l){return l.status==="done";}).length,open:ls.filter(function(l){return l.status==="planned";}).length,
     attended:eventsFor(rid).length,invited:Object.keys(inv).length};
 }
+function lowTo(){var t=myTeam();return coordinators().filter(function(c){return !t||c.id!==t.id;});}
+function lowMsg(m){var r=S.rushees.get(m.rid);var cs=lowTo();var t=myTeam();
+  return "Hey "+cs.map(function(c){return c.name.split(" ")[0];}).join(" and ")+", heads up: I "+(m.logged?"logged a lunch with ":"just met with ")+(r?r.name:"a rushee")+" and rated his interest a "+m.rating+" out of 5."+(m.text?" "+m.text:"");}
+function lowList(){var cut=Date.now()-21*86400000;return arr(S.notes).filter(function(n){return n.rating&&n.rating<=2&&!n.lowSeen&&(n.createdAt||0)>=cut&&S.rushees.get(n.rusheeId)&&(S.rushees.get(n.rusheeId).stage||"new")!=="dropped";}).sort(function(a,b){return (b.createdAt||0)-(a.createdAt||0);});}
 function coordinators(){return arr(S.team).filter(function(t){return t.role==="coordinator";});}
 function extGroup(phones,msg,label){var ns=phones.map(normPhone).filter(Boolean);if(!ns.length)return "";return smsHref(ns,msg);}
 function inviteMsg(e,rid){var r=S.rushees.get(rid);var t=myTeam();
-  return "Hey "+(r?r.name.split(" ")[0]:"")+"! This is "+(t?t.name.split(" ")[0]:"")+" with BYX. We're having "+e.name+" on "+fmtDate(e.date).replace(/^(Today|Tomorrow)$/,function(x){return x.toLowerCase();})+(e.time?" at "+fmtTime(e.time):"")+(e.place?" at "+e.place:"")+". We'd love for you to come!";}
+  return "Hey "+(r?r.name.split(" ")[0]:"")+"! This is "+(t?t.name.split(" ")[0]:"")+" with BYX. We're having "+e.name+" "+whenPhrase(e.date,e.time,e.place)+". We'd love for you to come, and bring any guys you know!";}
 function avatarHTML(r,big){var st=big?' style="width:56px;height:56px;font-size:20px;border-radius:14px"':'';
   if(r&&r.photoData&&/^data:image\//.test(r.photoData))return '<span class="avatar"'+st+'><img src="'+esc(r.photoData)+'" alt="" loading="lazy"></span>';
   return '<span class="avatar"'+st+'>'+esc(initials(r?r.name:"?"))+'</span>';}
@@ -397,7 +410,7 @@ function lunchMsg(l,tid){
   var who=(l.rusheeIds||[]).map(rName).join(" and ")||"a rushee";
   var r=(l.rusheeIds||[]).map(function(id){return S.rushees.get(id);}).filter(Boolean);
   var nums=r.filter(function(x){return x.phone;}).map(function(x){return x.name.split(" ")[0]+": "+x.phone;}).join(", ");
-  var when=l.date?" on "+fmtDate(l.date)+(l.time?" at "+fmtTime(l.time):"")+(l.place?" at "+l.place:""):" this week";
+  var when=l.date?" "+whenPhrase(l.date,l.time,l.place):" this week";
   return "Hey "+first+"! You're assigned to take "+who+" to "+(l.kind||"lunch").toLowerCase()+when+"."+(nums?" His number: "+nums+".":"")+(l.date?"":" Reach out, set a time, and log it in the BYX Rush Portal.")+" Thanks brother!";
 }
 function smsHref(nums,msg){var ios=/iPhone|iPad|iPod|Macintosh/.test(navigator.userAgent);var b=encodeURIComponent(msg||"");
@@ -412,6 +425,9 @@ function rusheeMsg(l,rid,v){
   var r=S.rushees.get(rid);var me_=myTeam();
   return RTEMPLATES[v||0].fn(r?r.name.split(" ")[0]:"",me_?me_.name.split(" ")[0]:"");
 }
+function msgArea(msg,phone){var n=normPhone(phone);return '<textarea class="msgedit" rows="4" aria-label="Message" data-n="'+esc(n)+'" data-pre="'+esc(phone?String(phone)+"\n":"")+'">'+esc(msg)+'</textarea>';}
+function msgAreaMulti(msg,phones){var ns=phones.map(normPhone).filter(Boolean);return '<textarea class="msgedit" rows="4" aria-label="Message" data-n="'+esc(ns.join(","))+'" data-pre="'+esc(phones.filter(Boolean).join(", ")+(phones.filter(Boolean).length?"\n":""))+'">'+esc(msg)+'</textarea>';}
+var EDITHINT='<p class="small muted" style="margin:0">Tap the message to change it or write your own.</p>';
 function rusheeTextBtn(l,rid){
   var r=S.rushees.get(rid);if(!r)return "";var first=esc(r.name.split(" ")[0]);var ph=normPhone(r.phone);
   if(ph)return '<button class="btn sm '+(l.reachedOut?"":"primary")+'" data-a="rtext" data-l="'+esc(l.id)+'" data-p="'+esc(rid)+'">'+(l.reachedOut?"Text "+first+" again":"Text "+first)+'</button>';
@@ -624,7 +640,7 @@ function vReport(){
     '<div class="tile"><span class="num">'+ns.length+'</span><span>Notes written</span></div><div class="tile"><span class="num">'+ck.length+'</span><span>Event check-ins</span></div></div>';
   h+='<div class="grid2"><section class="section"><h3>Pipeline</h3><table class="score"><tbody>'+STAGES.filter(function(st){return st[0]!=="dropped";}).map(function(st){return '<tr><td>'+pill(st[0])+'</td><td class="num">'+counts[st[0]]+'</td></tr>';}).join("")+'</tbody></table></section>'+
     '<section class="section"><h3>Lunches done by week</h3><div class="wkbars">'+weeks.map(function(x){return '<div class="wkbar"><i style="height:'+Math.round(x.n/mx*100)+'%"></i><b class="num">'+x.n+'</b><small>'+esc(pd(x.ws))+'</small></div>';}).join("")+'</div><div class="small muted">'+notesWk+' notes written in the last 7 days</div></section></div>';
-  h+='<section class="section"><h3>Top-rated rushees</h3>'+(top.length?'<table class="score"><thead><tr><th>Rushee</th><th>Stage</th><th>Avg fit</th><th>Ratings</th></tr></thead><tbody>'+top.map(function(x){return '<tr><td><b role="button" tabindex="0" data-a="open-r" data-id="'+esc(x.r.id)+'" style="cursor:pointer">'+esc(x.r.name)+'</b></td><td>'+pill(x.r.stage)+'</td><td class="num">'+x.avg.toFixed(1)+'</td><td class="num">'+x.n+'</td></tr>';}).join("")+'</tbody></table>':'<div class="empty">No ratings yet.</div>')+'</section>';
+  h+='<section class="section"><h3>Top-rated rushees</h3>'+(top.length?'<table class="score"><thead><tr><th>Rushee</th><th>Stage</th><th>Avg interest</th><th>Ratings</th></tr></thead><tbody>'+top.map(function(x){return '<tr><td><b role="button" tabindex="0" data-a="open-r" data-id="'+esc(x.r.id)+'" style="cursor:pointer">'+esc(x.r.name)+'</b></td><td>'+pill(x.r.stage)+'</td><td class="num">'+x.avg.toFixed(1)+'</td><td class="num">'+x.n+'</td></tr>';}).join("")+'</tbody></table>':'<div class="empty">No ratings yet.</div>')+'</section>';
   h+='<section class="section"><h3>Rush team activity this season</h3><table class="score"><thead><tr><th>Brother</th><th>Lunches</th><th>Notes</th><th>Texts</th></tr></thead><tbody>'+bro.map(function(x){return '<tr><td>'+esc(x.t.name)+'</td><td class="num">'+x.lu+'</td><td class="num">'+x.no+'</td><td class="num">'+x.tx+'</td></tr>';}).join("")+'</tbody></table></section>';
   return h;
 }
@@ -679,7 +695,7 @@ function view(){
   switch(ui.route){case "report":return vReport();case "status":return vStatus();case "events":return vEvents();case "plan":return vPlan();case "calendar":return vCalendar();case "board":return vBoard();case "rushees":return vRushees();case "lunches":return vLunches();case "team":return vTeam();case "import":return vImport();default:return vMe();}
 }
 function pill(stage){var s=STAGE[stage]||STAGE["new"];return '<span class="pill" style="color:'+s.f+';background:'+s.c+'">'+s.l+'</span>';}
-function stars(v){if(v==null)return "";var n=Math.round(v);var h='<span class="stars" title="Fit '+v.toFixed(1)+' of 5">';for(var i=1;i<=5;i++)h+='<i class="'+(i<=n?"on":"")+'"></i>';return h+'</span>';}
+function stars(v){if(v==null)return "";var n=Math.round(v);var h='<span class="stars" title="Interest '+v.toFixed(1)+' of 5">';for(var i=1;i<=5;i++)h+='<i class="'+(i<=n?"on":"")+'"></i>';return h+'</span>';}
 
 function lunchCard(l,opts){
   opts=opts||{};
@@ -771,7 +787,7 @@ function rusheeItem(r){
 }
 function noteForm(id,rid,lunchId,label){
   return '<form class="section" data-form="note" data-rid="'+esc(rid)+'" data-lunch="'+esc(lunchId||"")+'">'+
-    '<div class="field"><label>How strong a fit? (1 = not a fit, 5 = give him a bid)</label><div class="rate">'+
+    '<div class="field"><label>How interested is he? (1 = not interested, 5 = ready to join)</label><div class="rate">'+
     [1,2,3,4,5].map(function(n){return '<label><input type="radio" name="rating" value="'+n+'" id="'+id+'-r'+n+'"><span>'+n+'</span></label>';}).join("")+'</div></div>'+
     '<div class="field"><label for="'+id+'">'+esc(label||"Note")+'</label><textarea id="'+id+'" name="text" placeholder="What did you talk about? Faith, family, involvement, what he\'s looking for in a brotherhood… (On a phone, tap the mic on your keyboard to talk it.)"></textarea></div>'+
     '<div class="row"><button class="btn primary" type="submit">Save note</button>'+(dictApi?'<button type="button" class="btn ghost mic" data-a="mic" data-for="'+id+'">🎙 Talk</button>':'')+'</div></form>';
@@ -860,12 +876,14 @@ function vBoard(){
     var okLunches=subs.filter(function(x){return x.type==="lunch"&&!lunchDup(x);}).length;
     h+='<section class="section"><div class="spread"><h3>Needs your review <span class="badge" style="vertical-align:middle">'+subs.length+'</span></h3>'+(okLunches>1?'<button class="btn sm primary" data-a="sub-approve-all">Approve all '+okLunches+' lunches</button>':'')+'</div>'+subs.map(function(x){
       var who=teamName(x.by);var body;
-      if(x.type==="lunch")body='<b>Lunch logged: '+esc(rName(x.rusheeId))+'</b>'+(x.rating?' '+stars(x.rating):'')+'<div class="small muted">'+esc(fmtDate(x.date))+(x.place?" · "+esc(x.place):"")+' · submitted by '+esc(who)+' '+esc(ago(x.createdAt))+'</div>'+(x.note?'<div class="small" style="white-space:pre-wrap">"'+esc(x.note)+'"</div>':'')+(lunchDup(x)?'<div class="small" style="color:var(--warn)">Possible duplicate: same brother, guy and date is already logged. Approve all skips this one.</div>':'');
+      if(x.type==="lunch")body='<b>Lunch logged: '+esc(rName(x.rusheeId))+'</b>'+(x.rating?' '+stars(x.rating):'')+(x.rating&&x.rating<=2?' <span class="tag" style="color:var(--warn)">Low interest</span>':'')+'<div class="small muted">'+esc(fmtDate(x.date))+(x.time?" · "+esc(fmtTime(x.time)):"")+(x.place?" · "+esc(x.place):"")+' · submitted by '+esc(who)+' '+esc(ago(x.createdAt))+'</div>'+(x.note?'<div class="small" style="white-space:pre-wrap">"'+esc(x.note)+'"</div>':'')+(lunchDup(x)?'<div class="small" style="color:var(--warn)">Possible duplicate: same brother, guy and date is already logged. Approve all skips this one.</div>':'');
       else{var dup=similarRushee(x.name,null);
         body='<b>New PNM: '+esc(x.name)+'</b><div class="small muted">'+esc([x.year,x.phone].filter(Boolean).join(" · ")||"No details")+' · suggested by '+esc(who)+' '+esc(ago(x.createdAt))+'</div>'+(x.note?'<div class="small" style="white-space:pre-wrap">"'+esc(x.note)+'"</div>':'')+(dup?'<div class="small" style="color:var(--warn)">Heads up: '+(norm(dup.name)===norm(x.name)?esc(dup.name)+' is already on the list.':'is this '+esc(dup.name)+', who’s already on the list?')+'</div>':'');}
       return '<div class="sub">'+body+'<div class="row"><button class="btn sm primary" data-a="sub-approve" data-id="'+esc(x.id)+'">Approve</button><button class="btn sm ghost" data-a="sub-reject" data-id="'+esc(x.id)+'">'+(x.type==="lunch"?"Reject":"Don't add")+'</button></div></div>';
     }).join("")+'</section>';
   }
+  if(isCoord()){var lows=lowList();if(lows.length)h+='<section class="section"><h3>Low interest <span class="badge" style="vertical-align:middle">'+lows.length+'</span></h3><p class="small muted" style="margin:0">Rated 2 or lower in the last 3 weeks. Decide whether to try a different brother, give it time, or drop him.</p><div class="list">'+lows.slice(0,20).map(function(n){var r=S.rushees.get(n.rusheeId);
+      return '<div class="item" style="cursor:default">'+avatarHTML(r)+'<span class="main"><b role="button" tabindex="0" data-a="open-r" data-id="'+esc(r.id)+'" style="cursor:pointer">'+esc(r.name)+'</b> '+stars(n.rating)+'<small>'+esc(teamName(n.teamId))+' · '+esc(ago(n.createdAt))+(n.text?' · “'+esc(String(n.text).slice(0,90))+(String(n.text).length>90?"…":"")+'”':'')+'</small></span><span class="side"><button class="btn sm ghost" data-a="low-seen" data-id="'+esc(n.id)+'">Got it</button></span></div>';}).join("")+'</div></section>';}
   if(isCoord()){var nds=nudges();if(nds.length)h+='<section class="section"><h3>Needs a nudge <span class="badge" style="vertical-align:middle">'+nds.length+'</span></h3><p class="small muted" style="margin:0">Assignments that have stalled. One tap opens a friendly text to the brother.</p><div class="list">'+nds.slice(0,30).map(function(n){var hr=nudgeHref(n);
       return '<div class="item" style="cursor:default"><span class="main"><b>'+esc(teamName(n.tid))+' → '+esc(rName((n.l.rusheeIds||[])[0]))+'</b><small>'+esc(n.reason)+'</small></span><span class="side">'+(hr?'<a class="btn sm" href="'+esc(hr)+'">Nudge '+esc(teamName(n.tid).split(" ")[0])+'</a>':'<span class="tag">No number</span>')+'</span></div>';}).join("")+'</div></section>';}
   if(isCoord()||me.viewer||me.isOwner){var gc=goingCold();if(gc.length)h+='<section class="section"><h3>Going cold <span class="badge" style="vertical-align:middle">'+gc.length+'</span></h3><p class="small muted" style="margin:0">Active guys no one has contacted in 10+ days.</p><div class="list">'+gc.slice(0,15).map(function(x){
@@ -1021,6 +1039,7 @@ function drawEventGraphic(e,tpl,size){
     var off=Math.max(areaTop,areaTop+((areaBot-areaTop)-y)/2);
     x.drawImage(lay,0,off);
     x.fillStyle=P.acc;x.fillRect(0,H-22,W,22);
+    x.fillStyle=P.acc;x.font="800 "+(sq?34:44)+"px Saira, sans-serif";ls(x,"3px");x.fillText("BRING ANY GUYS YOU KNOW",pad,H-(sq?118:150));ls(x,"0px");
     x.fillStyle=P.sub;x.font="700 "+(sq?28:32)+"px 'Nunito Sans', sans-serif";x.fillText("Beta Upsilon Chi · Baylor University",pad,H-(sq?60:80));
     return c;
   });
@@ -1033,7 +1052,7 @@ function gfxFile(){var c=ui.gfx.canvas;var e=S.events.get(ui.gfx.e)||{};var name
   return new Promise(function(res){c.toBlob(function(b){res(new File([b],name,{type:"image/png"}));},"image/png");});}
 function followMsg(e,rid,came){var r=S.rushees.get(rid);var t=myTeam();var f=r?r.name.split(" ")[0]:"";var me1=t?t.name.split(" ")[0]:"";
   return came?"Hey "+f+"! This is "+me1+" with BYX. Great to see you at "+e.name+"! Want to grab lunch or coffee this week?"
-    :"Hey "+f+"! This is "+me1+" with BYX. We missed you at "+e.name+"! Would love to grab lunch or coffee this week if you're free.";}
+    :"Hey "+f+"! This is "+me1+" with BYX. We missed you at "+e.name+"! Would love to grab lunch or coffee this week if you're free. Bring any guys you know to the next one!";}
 function followupHTML(e){
   var here={};checkinsFor(e.id).forEach(function(c){here[c.rusheeId]=c;});
   var inv={},fu={};arr(S.reachouts).forEach(function(x){if(x.eventId!==e.id)return;if(x.kind==="invite")(inv[x.rusheeId]=inv[x.rusheeId]||[]).push(x);if(x.kind==="followup")(fu[x.rusheeId]=fu[x.rusheeId]||[]).push(x);});
@@ -1376,7 +1395,7 @@ function drawerHTML(){
   var extra=r.extra||{};Object.keys(extra).forEach(function(k){if(extra[k])kv.push([k,extra[k]]);});
   var h='<div class="scrim" data-a="close-drawer"><aside class="drawer" data-stop="1" aria-label="Rushee profile">'+
     '<div class="spread"><button class="btn sm ghost" data-a="close-drawer">← Back</button>'+(coord?'<div class="row"><button class="btn sm" data-a="edit-r" data-id="'+esc(r.id)+'">Edit</button></div>':"")+'</div>'+
-    '<div class="row">'+(r.photoData?'<button class="photo-btn" data-a="photo-view" data-id="'+esc(r.id)+'" aria-label="See '+esc(r.name)+'’s photo larger">'+avatarHTML(r,true)+'</button>':avatarHTML(r,true))+'<div style="min-width:0"><h2 style="font-size:24px">'+esc(r.name)+'</h2><div class="row" style="gap:8px;margin-top:4px">'+pill(r.stage)+(avg!=null?'<span class="small muted">Team fit '+stars(avg)+' <span class="num">'+avg.toFixed(1)+'</span></span>':"")+'</div></div></div>';
+    '<div class="row">'+(r.photoData?'<button class="photo-btn" data-a="photo-view" data-id="'+esc(r.id)+'" aria-label="See '+esc(r.name)+'’s photo larger">'+avatarHTML(r,true)+'</button>':avatarHTML(r,true))+'<div style="min-width:0"><h2 style="font-size:24px">'+esc(r.name)+'</h2><div class="row" style="gap:8px;margin-top:4px">'+pill(r.stage)+(avg!=null?'<span class="small muted">Team interest '+stars(avg)+' <span class="num">'+avg.toFixed(1)+'</span></span>':"")+'</div></div></div>';
   if(coord){
     h+='<div class="fields"><div class="field"><label for="d-stage">Stage</label><select id="d-stage" data-change="stage" data-id="'+esc(r.id)+'">'+STAGES.map(function(s){return '<option value="'+s[0]+'"'+((r.stage||"new")===s[0]?" selected":"")+'>'+s[1]+'</option>';}).join("")+'</select></div>'+
        '<div class="field"><label for="d-point">Point brother</label><select id="d-point" data-change="point" data-id="'+esc(r.id)+'"><option value="">None</option>'+arr(S.team).sort(byName).map(function(t){return '<option value="'+esc(t.id)+'"'+(r.pointId===t.id?" selected":"")+'>'+esc(t.name)+'</option>';}).join("")+'</select></div></div>';
@@ -1457,11 +1476,15 @@ function modalHTML(){
   } else if(m.type==="rtext"){
     var Lr=S.lunches.get(m.l)||{id:m.l};var rr=S.rushees.get(m.p);var rf=rr?rr.name.split(" ")[0]:"";
     h+='<div class="section"><div class="spread"><h2>Text '+esc(rf)+'</h2><button type="button" class="btn sm ghost" data-a="close-modal">Cancel</button></div>'+
-      '<p class="muted small" style="margin:0">Pick a message. It opens in Messages ready to send, and Reached out gets checked off.</p>'+(rr&&rr.avoid?'<div class="avoid"><b>⚠ Avoid:</b> '+esc(rr.avoid)+'</div>':'')+
+      '<p class="muted small" style="margin:0">Pick a message, change it, or write your own. It opens in Messages ready to send, and Reached out gets checked off.</p>'+(rr&&rr.avoid?'<div class="avoid"><b>⚠ Avoid:</b> '+esc(rr.avoid)+'</div>':'')+
       RTEMPLATES.map(function(tp,v){var msg=rusheeMsg(Lr,m.p,v);var ex=rr?extText(rr.phone,msg,rf):"";
-        return '<div class="card" style="gap:8px"><b>'+esc(tp.label)+'</b><div class="small" style="white-space:pre-wrap">'+esc(msg)+'</div><div class="row">'+
+        return '<div class="card" style="gap:8px"><b>'+esc(tp.label)+'</b>'+msgArea(msg,rr?rr.phone:"")+'<div class="row">'+
           (ex?'<a class="btn sm primary" href="'+esc(ex)+'" target="_blank" rel="noopener noreferrer" data-a="rtext-sent" data-id="'+esc(Lr.id)+'" data-r="'+esc(m.p)+'">Text this one</a>':'')+
           '<button class="btn sm'+(ex?' ghost':' primary')+'" data-a="rtext-copy" data-id="'+esc(Lr.id)+'" data-r="'+esc(m.p)+'" data-v="'+esc((rr&&rr.phone?rr.phone+"\n":"")+msg)+'">Copy</button></div></div>';}).join("")+
+      (function(){var me7=myTeam();var cm="Hey "+rf+"! This is "+(me7?me7.name.split(" ")[0]:"")+" with BYX. ";var ex=rr?extText(rr.phone,cm,rf):"";
+        return '<div class="card" style="gap:8px"><b>Custom message</b>'+msgArea(cm,rr?rr.phone:"")+'<div class="row">'+
+          (ex?'<a class="btn sm primary" href="'+esc(ex)+'" target="_blank" rel="noopener noreferrer" data-a="rtext-sent" data-id="'+esc(Lr.id)+'" data-r="'+esc(m.p)+'">Text this one</a>':'')+
+          '<button class="btn sm'+(ex?' ghost':' primary')+'" data-a="rtext-copy" data-id="'+esc(Lr.id)+'" data-r="'+esc(m.p)+'" data-v="'+esc((rr&&rr.phone?rr.phone+"\n":"")+cm)+'">Copy</button></div></div>';})()+
       (rr&&normPhone(rr.phone)?'<div class="row" style="justify-content:space-between;align-items:center"><span class="small muted">Save him so his texts show up as “'+esc(rr.name)+' · PNM.”</span><button class="btn sm" data-a="save-contact" data-id="'+esc(rr.id)+'">Save to contacts</button></div>':'')+'</div>';
   } else if(m.type==="sms"){
     var Ls=S.lunches.get(m.l)||m.lunch||{id:m.l};var person,msg,phone;
@@ -1469,7 +1492,7 @@ function modalHTML(){
     phone=person?String(person.phone||"").replace(/[\u200e\u200f\u202a-\u202e]/g,"").trim():"";
     var phn=normPhone(phone);
     h+='<div class="section"><div class="spread"><h2>Text '+esc(person?person.name.split(" ")[0]:"")+'</h2><button type="button" class="btn sm ghost" data-a="close-modal">Done</button></div>'+
-      '<div class="field"><label>Step 1: copy the message</label><textarea id="sms-msg" readonly style="min-height:80px">'+esc(msg)+'</textarea><div class="row"><button class="btn primary" data-a="sms-copy" data-w="msg">Copy message</button></div></div>'+
+      '<div class="field"><label>Step 1: copy the message</label><textarea id="sms-msg" style="min-height:80px">'+esc(msg)+'</textarea><div class="row"><button class="btn primary" data-a="sms-copy" data-w="msg">Copy message</button></div></div>'+
       '<div class="field"><label>Step 2: text it to this number</label><div class="row"><span style="flex:1;font-size:20px;font-weight:700;font-family:var(--display);letter-spacing:.02em;user-select:all">'+esc(phone)+'</span><button class="btn" data-a="sms-copy" data-w="num">Copy number</button></div><input type="hidden" id="sms-num" value="'+esc(phone)+'"></div>'+
       '<p class="small muted" style="margin:0">Open Messages, start a text to that number, and paste.'+(m.k==="rushee"?' Reached out is checked off for you.':'')+'</p></div>';
   } else if(m.type==="drop"){
@@ -1490,8 +1513,9 @@ function modalHTML(){
       '<p class="muted small" style="margin:0">Went to lunch or coffee with a guy you weren\'t assigned? Log it here. Jonah and Clark will review it and add it to the official record.</p>'+
       '<div class="fields"><div class="field" style="grid-column:1/-1"><label for="sl-r">Who did you go with? *</label><input type="text" id="sl-r" name="rushee" list="rlistall" required placeholder="Start typing his name"><datalist id="rlistall">'+arr(S.rushees).sort(byName).map(function(x){return '<option value="'+esc(x.name)+'">';}).join("")+'</datalist></div>'+
       '<div class="field"><label for="sl-d">Date *</label><input type="date" id="sl-d" name="date" required value="'+today()+'"></div>'+
+      '<div class="field"><label for="sl-t">Time</label><input type="time" id="sl-t" name="time"></div>'+
       '<div class="field"><label for="sl-p">Where</label><input type="text" id="sl-p" name="place" placeholder="SUB, Common Grounds…"></div></div>'+
-      '<div class="field"><label>How strong a fit? (1 = not a fit, 5 = give him a bid)</label><div class="rate">'+[1,2,3,4,5].map(function(n){return '<label><input type="radio" name="rating" value="'+n+'"><span>'+n+'</span></label>';}).join("")+'</div></div>'+
+      '<div class="field"><label>How interested is he? (1 = not interested, 5 = ready to join)</label><div class="rate">'+[1,2,3,4,5].map(function(n){return '<label><input type="radio" name="rating" value="'+n+'"><span>'+n+'</span></label>';}).join("")+'</div></div>'+
       '<div class="field"><label for="sl-n">How did it go?</label><textarea id="sl-n" name="note" placeholder="This becomes your note on his profile once approved."></textarea></div>'+
       '<div class="row"><button class="btn primary" type="submit">Submit for review</button></div></form>';
   } else if(m.type==="season"){
@@ -1525,18 +1549,27 @@ function modalHTML(){
       '<div class="field"><label for="sp-y">Year</label><select id="sp-y" name="year"><option>Freshman (Class of 2030)</option><option>Sophomore (Class of 2029)</option><option>Junior (Class of 2028)</option><option>Senior</option></select></div></div>'+
       '<div class="field"><label for="sp-note">How do you know him? Why is he a fit?</label><textarea id="sp-note" name="note"></textarea></div>'+
       '<div class="row"><button class="btn primary" type="submit">Submit for review</button></div></form>';
+  } else if(m.type==="lowint"){
+    var lc=lowTo();var lm=lowMsg(m);var lx=extGroup(lc.map(function(c){return c.phone;}),lm);
+    h+='<div class="section"><div class="spread"><h2>'+(m.logged?"Logged ✓":"Note saved ✓")+'</h2><button type="button" class="btn sm ghost" data-a="close-modal">Done</button></div>'+
+      '<div class="avoid"><b>Low interest ('+m.rating+' of 5).</b> Let '+esc(lc.map(function(c){return c.name.split(" ")[0];}).join(" and "))+' know so they can decide what to do next.</div>'+
+      msgAreaMulti(lm,lc.map(function(c){return c.phone;}))+'<div class="row">'+
+      (lx?'<a class="btn primary" href="'+esc(lx)+'" target="_blank" rel="noopener noreferrer">Text '+esc(lc.map(function(c){return c.name.split(" ")[0];}).join(" & "))+'</a>':'')+
+      '<button class="btn'+(lx?' ghost':' primary')+'" data-a="copy-raw" data-v="'+esc(lc.map(function(c){return c.phone;}).filter(Boolean).join(", ")+"\n"+lm)+'">Copy</button>'+
+      (m.logged?'<button class="btn ghost" data-a="sub-lunch">+ Log another lunch</button>':'')+'</div>'+
+      '<p class="small muted" style="margin:0">It also shows on their Board under Low interest.</p></div>';
   } else if(m.type==="notifycoords"){
     var cs=coordinators();var gx=extGroup(cs.map(function(c){return c.phone;}),m.msg,"Jonah & Clark");
     h+='<div class="section"><div class="spread"><h2>Sent for review</h2><button type="button" class="btn sm ghost" data-a="close-modal">Done</button></div>'+
       '<p class="muted small" style="margin:0">It\'s in '+esc(cs.map(function(c){return c.name.split(" ")[0];}).join(" and "))+'\'s review list now. Give them a heads-up:</p>'+
-      '<div class="card small" style="white-space:pre-wrap">'+esc(m.msg)+'</div><div class="row">'+
+      msgAreaMulti(m.msg,cs.map(function(c){return c.phone;}))+'<div class="row">'+
       (gx?'<a class="btn primary" href="'+esc(gx)+'" target="_blank" rel="noopener noreferrer">Group text '+esc(cs.map(function(c){return c.name.split(" ")[0];}).join(" & "))+'</a>':'')+
       '<button class="btn'+(gx?' ghost':' primary')+'" data-a="copy-raw" data-v="'+esc(cs.map(function(c){return c.phone;}).filter(Boolean).join(", ")+"\n"+m.msg)+'">Copy</button></div></div>';
   } else if(m.type==="evfollow"){
     var E2=S.events.get(m.e)||{};var R2=S.rushees.get(m.r);var fmsg=R2?followMsg(E2,m.r,m.came):"";var fx=R2?extText(R2.phone,fmsg,R2.name.split(" ")[0]):"";
     h+='<div class="section"><div class="spread"><h2>Follow up with '+esc(R2?R2.name.split(" ")[0]:"")+'</h2><button type="button" class="btn sm ghost" data-a="close-modal">Cancel</button></div>'+
       (R2&&R2.avoid?'<div class="avoid"><b>⚠ Avoid:</b> '+esc(R2.avoid)+'</div>':'')+
-      '<div class="card small" style="white-space:pre-wrap">'+esc(fmsg)+'</div><div class="row">'+
+      msgArea(fmsg,R2?R2.phone:"")+EDITHINT+'<div class="row">'+
       (fx?'<a class="btn primary" href="'+esc(fx)+'" data-a="ev-follow-sent" data-id="'+esc(m.r)+'">Text '+esc(R2.name.split(" ")[0])+'</a>':'')+
       '<button class="btn'+(fx?' ghost':' primary')+'" data-a="copy-raw" data-v="'+esc((R2&&R2.phone?R2.phone+"\n":"")+fmsg)+'">Copy</button></div>'+
       '<p class="small muted" style="margin:0">Sending marks him as followed up by you.</p></div>';
@@ -1552,7 +1585,7 @@ function modalHTML(){
     var E=S.events.get(m.e)||{};var R=S.rushees.get(m.r);var imsg=R?inviteMsg(E,m.r):"";var ix=R?extText(R.phone,imsg,R.name.split(" ")[0]):"";
     h+='<div class="section"><div class="spread"><h2>Invite '+esc(R?R.name.split(" ")[0]:"")+'</h2><button type="button" class="btn sm ghost" data-a="close-modal">Cancel</button></div>'+
       (R&&R.avoid?'<div class="avoid"><b>⚠ Avoid:</b> '+esc(R.avoid)+'</div>':'')+
-      '<div class="card small" style="white-space:pre-wrap">'+esc(imsg)+'</div><div class="row">'+
+      msgArea(imsg,R?R.phone:"")+EDITHINT+'<div class="row">'+
       (ix?'<a class="btn primary" href="'+esc(ix)+'" target="_blank" rel="noopener noreferrer" data-a="ev-invite-sent" data-id="'+esc(m.r)+'">Text the invite</a>':'')+
       '<button class="btn'+(ix?' ghost':' primary')+'" data-a="ev-invite-copy" data-id="'+esc(m.r)+'" data-v="'+esc((R&&R.phone?R.phone+"\n":"")+imsg)+'">Copy</button></div>'+
       '<p class="small muted" style="margin:0">Sending marks him as invited by you.</p></div>';
@@ -1568,15 +1601,15 @@ function modalHTML(){
   } else if(m.type==="brotexts"){
     h+='<div class="section"><div class="spread"><h2>Text the brothers</h2><button type="button" class="btn sm ghost" data-a="close-modal">Done</button></div><p class="muted small" style="margin:0">Each brother gets one text with all of his guys for the week.</p>'+
       m.list.map(function(it){var t=S.team.get(it.tid);if(!t)return "";var msg=broWeekMsg(it.tid,it.lunches,m.week);var ex=extText(t.phone,msg,t.name.split(" ")[0]);
-        return '<div class="card" style="gap:8px"><b>'+esc(t.name)+' · '+it.lunches.length+' guy'+(it.lunches.length===1?"":"s")+'</b><div class="small muted" style="white-space:pre-wrap">'+esc(msg)+'</div><div class="row">'+
+        return '<div class="card" style="gap:8px"><b>'+esc(t.name)+' · '+it.lunches.length+' guy'+(it.lunches.length===1?"":"s")+'</b>'+msgArea(msg,t.phone)+'<div class="row">'+
           (ex?'<a class="btn sm primary" href="'+esc(ex)+'" target="_blank" rel="noopener noreferrer">Text '+esc(t.name.split(" ")[0])+'</a>':(normPhone(t.phone)?'':'<button class="btn sm ghost" data-a="edit-t" data-id="'+esc(t.id)+'">Add '+esc(t.name.split(" ")[0])+'\'s number</button>'))+
           '<button class="btn sm ghost" data-a="copy-raw" data-v="'+esc((t.phone?t.phone+"\n":"")+msg)+'">Copy</button></div></div>';}).join("")+'</div>';
   } else if(m.type==="textprompt"){
     var L=S.lunches.get(m.lunch.id)||m.lunch;
     h+='<div class="section"><div class="spread"><h2>Let them know</h2><button type="button" class="btn sm ghost" data-a="close-modal">Done</button></div>'+
-      '<p class="muted small" style="margin:0">Tap to open Messages with the text filled in, then hit Send. If the button doesn\'t open Messages, use Copy and paste it into a text.</p>'+
+      '<p class="muted small" style="margin:0">Change the message if you want, then tap to open Messages with it filled in and hit Send.</p>'+
       (L.teamIds||[]).map(function(tid){var t=S.team.get(tid);if(!t)return "";
-        return '<div class="card" style="gap:8px"><b>'+esc(t.name)+'</b><div class="small muted" style="white-space:pre-wrap">'+esc(lunchMsg(L,tid))+'</div>'+
+        return '<div class="card" style="gap:8px"><b>'+esc(t.name)+'</b>'+msgArea(lunchMsg(L,tid),t.phone)+
         (normPhone(t.phone)?'<div class="small">'+esc(t.phone)+'</div>':'')+'<div class="row">'+textBtn(L,tid)+'</div></div>';}).join("")+
       '</div>';
   } else if(m.type==="team"){
@@ -1730,6 +1763,7 @@ document.addEventListener("click",function(e){
     case "checkin":toggleCheckin(id);break;
     case "plan-go":runPlan();break;
     case "plan-reset":ui.plan=buildPlan(ui.plan);render();break;
+    case "low-seen":updDoc("notes/"+id,{lowSeen:true}).then(function(){toast("Cleared from Low interest");});break;
     case "copy-raw":(function(){var v=el.dataset.v||"";try{navigator.clipboard.writeText(v).then(function(){toast("Copied");},function(){toast("Couldn't copy on this device");});}catch(e){toast("Couldn't copy on this device");}})();break;
     case "cal-prev":ui.calWeek=addDays(ui.calWeek||weekOf(today()),-7);render();break;
     case "cal-next":ui.calWeek=addDays(ui.calWeek||weekOf(today()),7);render();break;
@@ -1747,6 +1781,9 @@ function focusFirst(){setTimeout(function(){var i=document.querySelector(".modal
 
 document.addEventListener("input",function(e){
   var t=e.target;
+  if(t.classList&&t.classList.contains("msgedit")){var box=t.closest(".card")||t.closest(".section")||t.parentNode;var ns=(t.dataset.n||"").split(",").filter(Boolean);
+    box.querySelectorAll('a[href^="sms"]').forEach(function(a){if(ns.length)a.href=smsHref(ns,t.value);});
+    box.querySelectorAll('[data-v]').forEach(function(b){b.dataset.v=(t.dataset.pre||"")+t.value;});return;}
   if(t.id==="doorq"){ui.doorq=t.value;var dev=S.events.get(ui.ev);var dr=document.getElementById("doorres");if(dev&&dr)dr.innerHTML=doorResHTML(dev);return;}
   if(t.id==="evsearch"){ui.evq=t.value;var ev=S.events.get(ui.ev);var box=document.getElementById("evlist");if(ev&&box)box.innerHTML=ui.evtab==="invites"?inviteListHTML(ev):checkListHTML(ev);return;}
   if(t.id==="rsearch"){ui.q=t.value;var l=document.getElementById("rlist");if(l)l.innerHTML=rusheeListHTML();return;}
@@ -1785,6 +1822,7 @@ document.addEventListener("submit",function(e){
       if(ta)delete drafts[ta.id];
       var l=lunchId&&S.lunches.get(lunchId);
       if(l&&l.status==="planned")updDoc("lunches/"+lunchId,{status:"done",doneAt:Date.now()});
+      if(rating&&rating<=2&&lowTo().length){ui.modal={type:"lowint",rid:f.dataset.rid,rating:rating,text:text};toast("Note saved");render();return;}
       toast("Note saved");render();
     },done);
   } else if(kind==="rushee"){
@@ -1863,8 +1901,8 @@ document.addEventListener("submit",function(e){
     if(!rx){toast("Pick a guy from the list. If he's new, use Suggest a new PNM first.");done();return;}
     if(!t){toast("Pick your name on My rush first");done();return;}
     var rt=parseInt(fd.get("rating"),10);
-    var sd={type:"lunch",status:"pending",by:t.id,uid:me.id||null,rusheeId:rx.id,date:fd.get("date")||today(),place:String(fd.get("place")||"").trim(),note:String(fd.get("note")||"").trim(),rating:rt>=1&&rt<=5?rt:null,createdAt:Date.now()};
-    setDoc("submissions/"+newId("s"),sd).then(function(){ui.modal={type:"sublogged",name:rx.name};render();},done);
+    var sd={type:"lunch",status:"pending",by:t.id,uid:me.id||null,rusheeId:rx.id,date:fd.get("date")||today(),time:String(fd.get("time")||""),place:String(fd.get("place")||"").trim(),note:String(fd.get("note")||"").trim(),rating:rt>=1&&rt<=5?rt:null,createdAt:Date.now()};
+    setDoc("submissions/"+newId("s"),sd).then(function(){ui.modal=(sd.rating&&sd.rating<=2&&lowTo().length)?{type:"lowint",rid:rx.id,rating:sd.rating,text:sd.note,logged:true,name:rx.name}:{type:"sublogged",name:rx.name};render();},done);
   } else if(kind==="subpnm"){
     var pn=String(fd.get("name")||"").trim();if(!pn){done();return;}
     if(!t){toast("Pick your name on My rush first");done();return;}
@@ -1975,7 +2013,7 @@ function approveSub(id,btn){
   var finish=function(){return updDoc("submissions/"+id,{status:"approved",reviewedBy:me5?me5.id:"",reviewedAt:Date.now()}).then(function(){toast("Approved");});};
   if(x.type==="lunch"){
     var lid=newId("l");
-    return setDoc("lunches/"+lid,{kind:"Lunch",date:x.date,time:"",place:x.place||"",details:"",rusheeIds:[x.rusheeId],teamIds:[x.by],status:"done",reachedOut:true,week:weekOf(x.date||today()),source:"submitted",createdAt:Date.now(),createdBy:me5?me5.id:""})
+    return setDoc("lunches/"+lid,{kind:"Lunch",date:x.date,time:x.time||"",place:x.place||"",details:"",rusheeIds:[x.rusheeId],teamIds:[x.by],status:"done",reachedOut:true,week:weekOf(x.date||today()),source:"submitted",createdAt:Date.now(),createdBy:me5?me5.id:""})
     .then(function(){return x.note?setDoc("notes/"+newId("n"),{rusheeId:x.rusheeId,teamId:x.by,uid:x.uid||null,lunchId:lid,text:x.note,rating:x.rating||null,createdAt:x.createdAt||Date.now(),source:"submitted"}):(x.rating?setDoc("notes/"+newId("n"),{rusheeId:x.rusheeId,teamId:x.by,uid:x.uid||null,lunchId:lid,text:"(Rated after a lunch logged at the start of rush.)",rating:x.rating,createdAt:x.createdAt||Date.now(),source:"submitted"}):null);})
     .then(function(){var r=S.rushees.get(x.rusheeId);if(r&&(r.stage||"new")==="new")return updDoc("rushees/"+r.id,{stage:"met"});})
     .then(finish).catch(function(){btn.disabled=false;});
