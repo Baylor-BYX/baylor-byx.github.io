@@ -921,7 +921,8 @@ function filteredRushees(){
     return norm([r.name,r.major,r.hometown,r.year,r.referredBy,r.church,r.dorm,r.interests,r.avoid,(r.tags||[]).join(" "),r.extra?Object.keys(r.extra).map(function(k){return r.extra[k];}).join(" "):"",noteText[r.id]||""].join(" ")).indexOf(q)>=0;
   }).sort(byName);
 }
-function rusheeListHTML(){var l=filteredRushees();return l.length?'<div class="list">'+l.map(rusheeItem).join("")+'</div><div class="muted small">'+l.length+' shown</div>':'<div class="empty">No rushees match.</div>';}
+function rusheeListHTML(){var l=filteredRushees();var np=l.filter(function(r){return normPhone(r.phone);}).length;
+  return l.length?'<div class="list">'+l.map(rusheeItem).join("")+'</div><div class="spread"><span class="muted small">'+l.length+' shown</span>'+(!me.viewer&&np?'<button class="btn sm" data-a="save-contacts-list">Save these '+np+' to contacts</button>':'')+'</div>':'<div class="empty">No rushees match.</div>';}
 function vRushees(){
   var h='<div class="spread"><h2>Rushees <span class="muted num" style="font-size:16px">'+S.rushees.size+'</span></h2><span class="seg"><a href="#rushees" aria-current="page">List</a><a href="#status">Status</a></span>'+(isCoord()?'<div class="row"><a class="btn" href="#import">Import sheet</a><button class="btn primary" data-a="new-r">+ Add rushee</button></div>':"")+'</div>';
   h+='<input type="search" id="rsearch" placeholder="Search names, notes, hometown, major, church…" value="'+esc(ui.q)+'" aria-label="Search rushees">';
@@ -1881,6 +1882,7 @@ document.addEventListener("click",function(e){
     case "know-add":(function(){var t=myTeam();if(!t)return;setDoc("knows/"+id+"__"+t.id,{rusheeId:id,teamId:t.id,uid:me.id,at:Date.now()}).then(function(){toast("Got it. Only coordinators see this.");});})();break;
     case "know-del":delDoc("knows/"+id+"__"+el.dataset.v).then(function(){toast("Removed");});break;
     case "save-contact":saveContacts([id]);break;
+    case "save-contacts-list":saveContacts(filteredRushees().map(function(r){return r.id;}));break;
     case "save-contacts-mine":(function(){var t=myTeam();if(!t)return;var ids={};arr(S.lunches).forEach(function(l){if((l.teamIds||[]).indexOf(t.id)>=0&&l.status!=="cancelled")(l.rusheeIds||[]).forEach(function(r){ids[r]=1;});});saveContacts(Object.keys(ids));})();break;
     case "photo-view":ui.modal={type:"photo",id:id};render();break;
     case "ev-graphic":ui.gfx={e:ui.ev,t:(ui.gfx&&ui.gfx.t)||"plum",s:(ui.gfx&&ui.gfx.s)||"story"};ui.modal={type:"evgraphic",e:ui.ev};render();renderGfx();break;
