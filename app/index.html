@@ -246,7 +246,7 @@ input[type=text],input[type=tel],input[type=date],input[type=time],input[type=se
   width:100%;background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:9px 11px;font-size:15px}
 input:focus,select:focus,textarea:focus{border-color:var(--accent);outline:none;box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 20%,transparent)}
 textarea{min-height:84px;resize:vertical}
-textarea.msgedit{min-height:96px;font-size:15px;line-height:1.4;background:var(--paper,#fff)}
+textarea.msgedit{min-height:96px;font-size:15px;line-height:1.4;background:var(--panel);color:var(--ink,inherit)}
 .fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
 .checks{display:flex;flex-direction:column;max-height:220px;overflow:auto;border:1px solid var(--line);border-radius:9px;background:var(--panel)}
 .checks label{display:flex;gap:9px;align-items:center;padding:8px 11px;border-top:1px solid var(--line);cursor:pointer;font-size:14px}
@@ -811,7 +811,7 @@ function vMe(){
   h+='<div class="tiles"><div class="tile'+(toSched.length?" alert":"")+'"><span class="num">'+toSched.length+'</span><span>To schedule</span></div><div class="tile"><span class="num">'+upcoming.length+'</span><span>Scheduled</span></div>'+
      '<div class="tile'+(owed.length?" alert":"")+'"><span class="num">'+owed.length+'</span><span>Notes you owe</span></div>'+
      '<div class="tile"><span class="num">'+myR.length+'</span><span>Your guys</span></div></div>';
-  if(!readOnly)h+='<div class="row"><button class="btn" data-a="sub-lunch">+ Log a lunch I went on</button><button class="btn" data-a="sub-pnm">+ Suggest a new PNM</button>'+(myR.length?'<button class="btn ghost" data-a="save-contacts-mine">Save my guys to contacts</button>':'')+'</div>';
+  if(!readOnly)h+='<div class="row"><button class="btn primary" data-a="plan-own">+ Plan a lunch</button><button class="btn" data-a="sub-lunch">+ Log a lunch I went on</button><button class="btn" data-a="sub-pnm">+ Suggest a new PNM</button>'+(myR.length?'<button class="btn ghost" data-a="save-contacts-mine">Save my guys to contacts</button>':'')+'</div>';
   var mySubs=arr(S.submissions).filter(function(x){return x.by===t.id&&x.status==="pending";}).sort(function(a,b){return (b.createdAt||0)-(a.createdAt||0);});
   if(mySubs.length>3)h+='<div class="small muted" style="padding:2px 4px">You have <b>'+mySubs.length+'</b> submissions waiting for Jonah and Clark to review. They disappear from here once reviewed.</div>';
   else if(mySubs.length)h+='<section class="section"><h3>Waiting for review</h3><div class="list">'+mySubs.map(function(x){
@@ -1263,9 +1263,10 @@ function vTeam(){
 function vImport(){
   if(!isCoord())return '<div class="empty">Only coordinators can import the rush sheet.</div>';
   var h='<div class="spread"><h2>Import master rush sheet</h2><a class="btn ghost" href="#rushees">Done</a></div>';
+  if(ui.wbk)return vWorkbook();
   var imp=ui.imp;
   if(!imp||!imp.rows){
-    h+='<div class="card"><h3>Upload a file</h3><p class="small muted" style="margin:0">Excel (.xlsx) or CSV. Export from Google Sheets with File, then Download.</p>'+
+    h+='<div class="card"><h3>Upload a file</h3><p class="small muted" style="margin:0">Excel (.xlsx) or CSV. Export from Google Sheets with File, then Download. Upload the whole rush workbook and the weekly tabs become lunch assignments automatically.</p>'+
        '<input type="file" id="impfile" accept=".csv,.tsv,.txt,.xlsx,.xls,text/csv"></div>'+
        '<div class="card"><h3>Or paste it</h3><p class="small muted" style="margin:0">Select your whole sheet including the header row, copy, and paste here.</p>'+
        '<textarea id="imppaste" style="min-height:140px;font-family:var(--mono);font-size:12.5px" placeholder="Name&#9;Phone&#9;Year&#9;Hometown…"></textarea><div class="row"><button class="btn primary" data-a="imp-paste">Read pasted sheet</button></div></div>';
@@ -1283,9 +1284,21 @@ function vImport(){
      (rows.length>6?'<div class="small muted">Showing the first 6 rows.</div>':"")+'</div>';
   h+='<div class="card"><div class="tiles"><div class="tile"><span class="num">'+plan.add.length+'</span><span>New rushees</span></div><div class="tile"><span class="num">'+plan.dupe.length+'</span><span>Already in the portal</span></div><div class="tile"><span class="num">'+plan.blank+'</span><span>Rows with no name</span></div></div>';
   if(!plan.hasName)h+='<div class="banner bad">Pick which column holds the name (Full name, or First and Last name).</div>';
-  if(plan.dupe.length)h+='<label class="row small"><input type="checkbox" data-change="imp-update"'+(imp.updateDupes?" checked":"")+'> Fill in blank details on the '+plan.dupe.length+' guys already in the portal</label>';
+  var chg=[];if(plan.dupe.length)plan.dupe.forEach(function(d){var c=dupeChanges(d);if(c.length)chg.push({d:d,c:c});});
+  var nChg=chg.reduce(function(a,x){return a+x.c.length;},0);
+  if(plan.dupe.length){var md=imp.overwrite?"update":(imp.updateDupes?"fill":"skip");
+    h+='<div class="field"><label>The '+plan.dupe.length+' guys already in the portal</label>'+
+      [["skip","Leave them as they are"],["fill","Only fill in details that are blank in the portal"],["update","Update changed details from the sheet ("+nChg+" change"+(nChg===1?"":"s")+" for "+chg.length+" guy"+(chg.length===1?"":"s")+")"]].map(function(o){
+        return '<label class="small" style="display:flex;gap:10px;align-items:flex-start;padding:4px 0;cursor:pointer"><input type="radio" name="impmode" data-change="imp-mode" value="'+o[0]+'"'+(md===o[0]?" checked":"")+' style="flex:none;margin-top:3px;width:18px;height:18px;accent-color:var(--purple)"><span>'+esc(o[1])+'</span></label>';}).join("")+
+      '<div class="small muted">Notes, lunches, stages, tags and photos are never changed. A blank cell in the sheet never erases anything.</div></div>';
+    if(imp.overwrite){
+      h+=chg.length?'<div class="card" style="gap:6px"><b>Changes to review</b><div class="list">'+chg.slice(0,60).map(function(x){var r=S.rushees.get(x.d.id)||{};
+        return '<div class="item" style="cursor:default;display:block"><b>'+esc(r.name||x.d.o.name)+'</b>'+x.c.map(function(c){return '<div class="small"><span class="muted">'+esc(c.label)+':</span> '+(c.from?'<s class="muted">'+esc(String(c.from).slice(0,60))+'</s> → ':'')+'<b>'+esc(String(c.to).slice(0,60))+'</b></div>';}).join("")+'</div>';}).join("")+'</div>'+
+        (chg.length>60?'<div class="small muted">+'+(chg.length-60)+' more guys</div>':'')+'</div>':'<div class="small muted">Nothing changed for the guys already in the portal.</div>';}
+  }
   if(imp.progress!=null)h+='<div class="progress"><i style="width:'+Math.round(imp.progress*100)+'%"></i></div><div class="small muted">'+esc(imp.progressText||"")+'</div>';
-  else h+='<div class="row"><button class="btn primary" data-a="imp-go"'+(plan.hasName&&(plan.add.length||(imp.updateDupes&&plan.dupe.length))?"":" disabled")+'>Import '+plan.add.length+' rushee'+(plan.add.length===1?"":"s")+'</button></div>';
+  else{var nUp=imp.overwrite?chg.length:0;var lbl=plan.add.length||!nUp?'Import '+plan.add.length+' new rushee'+(plan.add.length===1?"":"s"):"";if(nUp)lbl+=(lbl?" and update ":"Update ")+nUp+" guy"+(nUp===1?"":"s");
+    h+='<div class="row"><button class="btn primary" data-a="imp-go"'+(plan.hasName&&(plan.add.length||(imp.updateDupes&&plan.dupe.length)||nUp)?"":" disabled")+'>'+esc(lbl)+'</button></div>';}
   h+='</div>';
   return h;
 }
@@ -1310,12 +1323,20 @@ function rowToRushee(row){
   o.extra=extra;
   return o;
 }
+var FLABEL={};FIELDS.forEach(function(f){FLABEL[f[0]]=f[1];});
+function impSame(k,a,b){a=String(a==null?"":a).trim();b=String(b==null?"":b).trim();if(k==="phone"){var da=a.replace(/\D/g,"").replace(/^1(?=\d{10}$)/,""),db_=b.replace(/\D/g,"").replace(/^1(?=\d{10}$)/,"");if(da&&db_)return da===db_;}return a===b;}
+function dupeChanges(d){var cur=S.rushees.get(d.id)||{};var out=[];
+  Object.keys(d.o).forEach(function(k){if(k==="extra"||k==="name")return;var v=d.o[k];if(!v)return;if(!impSame(k,cur[k],v))out.push({k:k,label:FLABEL[k]||k,from:cur[k]||"",to:k==="phone"?cleanPhone(v):v});});
+  var ce=cur.extra||{};Object.keys(d.o.extra||{}).forEach(function(k){var v=d.o.extra[k];if(v&&!impSame("",ce[k],v))out.push({k:"extra",ek:k,label:k,from:ce[k]||"",to:v});});
+  return out;}
 function importPlan(){
   var imp=ui.imp;var hasName=imp.map.indexOf("name")>=0||imp.map.indexOf("first")>=0||imp.map.indexOf("last")>=0;
   var existing={};arr(S.rushees).forEach(function(r){existing[norm(r.name)]=r.id;});
   var seen={},add=[],dupe=[],blank=0;
+  var merge=function(a,b){Object.keys(b).forEach(function(f){if(f==="extra"){a.extra=a.extra||{};Object.keys(b.extra||{}).forEach(function(e){var x=a.extra[e],y=b.extra[e];a.extra[e]=!x?y:(y&&x!==y&&x.indexOf(y)<0?x+" · "+y:x);});return;}if(f==="name")return;var x=a[f],y=b[f];a[f]=!x?y:(y&&x!==y&&String(x).indexOf(y)<0&&f!=="phone"&&f!=="year"&&f!=="email"?x+" · "+y:x);});};
+  var dmap={};
   imp.rows.forEach(function(row){var o=rowToRushee(row);if(!o.name){blank++;return;}var k=norm(o.name);
-    if(existing[k]){dupe.push({id:existing[k],o:o});return;}if(seen[k])return;seen[k]=1;add.push(o);});
+    if(existing[k]){if(dmap[k]){merge(dmap[k].o,o);return;}dmap[k]={id:existing[k],o:o};dupe.push(dmap[k]);return;}if(seen[k]){merge(seen[k],o);return;}seen[k]=o;add.push(o);});
   return {hasName:hasName,add:add,dupe:dupe,blank:blank};
 }
 function parseDelimited(text){
@@ -1333,12 +1354,117 @@ function parseDelimited(text){
   if(cur!==""||row.length){row.push(cur);rows.push(row);}
   return rows.filter(function(r){return r.some(function(v){return String(v).trim()!=="";});});
 }
+
+/* Whole rush workbook: Master tab + weekly assignment tabs */
+function mdGuess(m,d){m=+m;d=+d;if(!(m>=1&&m<=12&&d>=1&&d<=31))return "";var td=today();var t0=dms(td);var best="",bd=1e15;var y0=+td.slice(0,4);
+  [y0,y0-1,y0+1].forEach(function(y){var dt=new Date(y,m-1,d);if(dt.getMonth()!==m-1)return;var iso_=iso(dt);var diff=(dms(iso_)-t0)/86400000;if(diff<-240||diff>45)return;if(Math.abs(diff)<bd){bd=Math.abs(diff);best=iso_;}});return best;}
+function tabWeek(name){var t=String(name||"");var m=t.match(/(\d{1,2})\s*[\/\-.]\s*(\d{1,2})/);if(m){var g=mdGuess(m[1],m[2]);return g?weekOf(g):"";}
+  var dg=(t.match(/\d+/g)||[]).join("");var c=[];if(dg.length===4)c=[[dg.slice(0,2),dg.slice(2)]];else if(dg.length===3)c=[[dg.slice(0,1),dg.slice(1)],[dg.slice(0,2),dg.slice(2)]];else if(dg.length===2)c=[[dg[0],dg[1]]];
+  var best="",bd=1e15,t0=dms(today());c.forEach(function(x){var g=mdGuess(x[0],x[1]);if(!g)return;var df=Math.abs(dms(g)-t0);if(df<bd){bd=df;best=g;}});return best?weekOf(best):"";}
+function sheetDate(v,wk){var t=String(v==null?"":v).trim();if(!t)return {date:"",place:""};var place="";var at=t.split("@");if(at.length>1){place=at.slice(1).join("@").trim();t=at[0].trim();}
+  var m=t.match(/^(\d{4})-(\d{2})-(\d{2})/);if(m)return {date:m[1]+"-"+m[2]+"-"+m[3],place:place};
+  m=t.match(/^(\d{1,2})[\/.\-](\d{1,2})(?:[\/.\-](\d{2,4}))?/);if(m){var y=m[3]?(+m[3]<100?2000+(+m[3]):+m[3]):0;var dt=y?new Date(y,+m[1]-1,+m[2]):null;var out=dt&&dt.getMonth()===+m[1]-1?iso(dt):mdGuess(m[1],m[2]);return {date:out||"",place:place};}
+  if(/^\d{5}(\.\d+)?$/.test(t)){var d0=new Date(Date.UTC(1899,11,30)+Math.floor(+t)*86400000);return {date:d0.toISOString().slice(0,10),place:place};}
+  return {date:"",place:place||t};}
+function yes(v){return /^(y|yes|x|true|✓|done)/i.test(String(v==null?"":v).trim());}
+function guessBro(nick){var n=norm(nick);if(!n)return "";var al=(S.config.brotherAliases||{})[n];if(al&&(al==="_skip"||S.team.get(al)))return al;
+  var T=arr(S.team);var P=function(t){return String(t.name||"").trim().split(/\s+/);};var one=function(f){var m=T.filter(f);return m.length===1?m[0].id:"";};
+  var r=one(function(t){return norm(t.name)===n;});if(r)return r;
+  var parts=String(nick).trim().split(/\s+/);
+  if(parts.length>1){var f=norm(parts[0]),l=norm(parts.slice(1).join(""));r=one(function(t){var p=P(t);return norm(p[0])===f&&p.length>1&&norm(p.slice(1).join("")).indexOf(l)===0;});if(r)return r;}
+  r=one(function(t){return norm(P(t)[0])===n;});if(r)return r;
+  r=one(function(t){var p=P(t);return p.length>1&&norm(p[p.length-1])===n;});if(r)return r;
+  r=one(function(t){var p=P(t);return p.length>1&&norm(p[0][0]+p[p.length-1])===n;});if(r)return r;
+  return "";}
+function buildWorkbook(names,getRows){
+  var W={tabs:[],bmap:{},nicks:{},masterSheet:""};var masterRows=null;
+  names.forEach(function(sn){var rows=getRows(sn)||[];if(rows.length<2)return;var hs=(rows[0]||[]).map(function(h){return norm(h);});
+    var find=function(f){for(var i=0;i<hs.length;i++)if(hs[i]&&f(hs[i]))return i;return -1;};
+    var bi=find(function(h){return h==="active"||h==="brother"||h==="assignedto"||h==="activemember";});
+    var ni=find(function(h){return h==="pnmname"||h==="pnm"||h==="name"||h==="rushee";});
+    if(bi>=0&&ni>=0){var data=rows.slice(1).filter(function(r){return String(r[ni]||"").trim();});if(!data.length)return;
+      W.tabs.push({name:sn,week:tabWeek(sn),rows:data,c:{name:ni,bro:bi,phone:find(function(h){return h.indexOf("phone")===0||h==="number"||h==="cell";}),reached:find(function(h){return h.indexOf("reached")===0||h.indexOf("texted")===0;}),met:find(function(h){return h.indexOf("meeting")===0||h.indexOf("met")===0||h.indexOf("scheduled")>=0;}),date:find(function(h){return h==="date"||h==="when";}),notes:find(function(h){return h==="notes"||h==="note"||h==="comments";})}});
+      data.forEach(function(r){var nk=String(r[bi]||"").trim();if(!nk)return;var k=norm(nk);W.nicks[k]=W.nicks[k]||{nick:nk,n:0};W.nicks[k].n++;});}
+    else if(!masterRows||/master/i.test(sn)){masterRows=rows;W.masterSheet=sn;}
+  });
+  if(!W.tabs.length)return null;
+  Object.keys(W.nicks).forEach(function(k){W.bmap[k]=guessBro(W.nicks[k].nick);});
+  W.tabs.sort(function(a,b){return (a.week||"").localeCompare(b.week||"");});
+  if(masterRows){loadRows(masterRows,{sheet:W.masterSheet,silent:true,overwrite:true});var im=ui.imp;if(im&&im.map&&im.map.indexOf("name")<0&&im.map.indexOf("first")<0){im.map[0]="name";}}
+  else ui.imp=null;
+  return W;}
+function wbPlan(){
+  var W=ui.wbk;var thisWk=weekOf(today());var nameMap={};arr(S.rushees).forEach(function(r){nameMap[norm(r.name)]=r.id;});
+  var mp=ui.imp&&ui.imp.rows?importPlan():{add:[],dupe:[]};mp.add.forEach(function(o){if(!nameMap[norm(o.name)])nameMap[norm(o.name)]="new:"+norm(o.name);});
+  var P={newGuys:[],assign:[],assignUpd:[],past:[],pastUpd:[],texts:[],notes:[],skipped:0,unmatched:0,stageMet:{}};var seen={},newSeen={};
+  var lunchFor=function(rid,tid,wk){return arr(S.lunches).find(function(l){return l.status!=="cancelled"&&(l.rusheeIds||[]).indexOf(rid)>=0&&(l.teamIds||[]).indexOf(tid)>=0&&(l.week?weekOf(l.week):(l.date?weekOf(l.date):""))===wk;});};
+  W.tabs.forEach(function(tb){var c=tb.c;var cur=tb.week&&tb.week>=thisWk;
+    tb.rows.forEach(function(r){var nm=String(r[c.name]||"").trim();var tid=W.bmap[norm(r[c.bro])];
+      if(!tid||tid==="_skip"){if(String(r[c.bro]||"").trim())P.skipped++;return;}
+      if(!S.team.get(tid)){P.skipped++;return;}
+      var k=norm(nm);var rid=nameMap[k];
+      if(!rid){rid="new:"+k;nameMap[k]=rid;if(!newSeen[k]){newSeen[k]=1;P.newGuys.push({name:nm,phone:c.phone>=0?cleanPhone(r[c.phone]):""});}}
+      var wk=tb.week||thisWk;var key=wk+"|"+rid+"|"+tid;if(seen[key])return;seen[key]=1;
+      var reached=c.reached>=0&&yes(r[c.reached]),met=c.met>=0&&yes(r[c.met]);var sd=c.date>=0?sheetDate(r[c.date],wk):{date:"",place:""};
+      var note=c.notes>=0?String(r[c.notes]||"").trim():"";
+      var ex=rid.indexOf("new:")===0?null:lunchFor(rid,tid,wk);var item={rid:rid,tid:tid,wk:wk,reached:reached,met:met,date:sd.date,place:sd.place,key:key,note:note,tab:tb.name};
+      if(cur){if(ex){var pt={};if(reached&&!ex.reachedOut){pt.reachedOut=true;pt.reachedAt=Date.now();}if(sd.date&&!ex.date)pt.date=sd.date;if(sd.place&&!ex.place)pt.place=sd.place;if(Object.keys(pt).length)P.assignUpd.push({id:ex.id,patch:pt,item:item});item.lunchId=ex.id;}else P.assign.push(item);}
+      else if(met){if(ex){if(ex.status!=="done"){P.pastUpd.push({id:ex.id,patch:{status:"done",doneAt:dms(sd.date||ex.date||wk),date:ex.date||sd.date||wk,reachedOut:true},item:item});}item.lunchId=ex.id;}else P.past.push(item);
+        var rr=S.rushees.get(rid);if(!rr||(rr.stage||"new")==="new")P.stageMet[rid]=1;}
+      else if(reached){var has=rid.indexOf("new:")!==0&&arr(S.reachouts).some(function(x){return x.rusheeId===rid&&x.by===tid&&(x.sheetKey===key||(x.at&&weekOf(iso(new Date(x.at)))===wk));});if(!has&&!ex)P.texts.push(item);}
+      if(note){var dup=rid.indexOf("new:")!==0&&arr(S.notes).some(function(n){return n.rusheeId===rid&&norm(n.text)===norm(note);});if(!dup)P.notes.push(item);}
+    });});
+  P.master=mp;P.unmatched=Object.keys(W.bmap).filter(function(k){return !W.bmap[k];}).length;
+  return P;}
+function vWorkbook(){
+  var W=ui.wbk;var P=wbPlan();var thisWk=weekOf(today());var imp=ui.imp;
+  var h='<div class="spread"><h2>Import rush workbook</h2><button class="btn ghost" data-a="imp-reset">Start over</button></div>';
+  h+='<div class="card"><b>Found '+W.tabs.length+' weekly tab'+(W.tabs.length===1?"":"s")+(W.masterSheet?' and the '+esc(W.masterSheet)+' list':'')+'</b><div class="small muted">'+W.tabs.map(function(t){return esc(t.name)+(t.week?(t.week>=thisWk?" · this week":" · past"):" · week unknown");}).join("<br>")+'</div></div>';
+  var keys=Object.keys(W.nicks).sort(function(a,b){var ua=W.bmap[a]?1:0,ub=W.bmap[b]?1:0;return ua-ub||W.nicks[a].nick.localeCompare(W.nicks[b].nick);});
+  var team=arr(S.team).sort(byName);
+  h+='<div class="card"><h3>Who is who?</h3><p class="small muted" style="margin:0">Match each name from the “Active” column to a brother. '+(P.unmatched?'<b style="color:var(--warn)">'+P.unmatched+' still need a match.</b> ':'')+'The app remembers these for next time.</p><div class="list">'+keys.map(function(k){var v=W.bmap[k]||"";
+    return '<div class="item" style="cursor:default'+(v?'':';background:color-mix(in srgb,var(--warn) 14%,transparent)')+'"><span class="main"><b>'+esc(W.nicks[k].nick)+'</b><small>'+W.nicks[k].n+' row'+(W.nicks[k].n===1?"":"s")+'</small></span><select data-change="wb-bro" data-k="'+esc(k)+'" aria-label="Brother for '+esc(W.nicks[k].nick)+'" style="width:auto;max-width:56%"><option value="">Pick a brother…</option><option value="_skip"'+(v==="_skip"?" selected":"")+'>Not on the team: skip</option>'+team.map(function(t){return '<option value="'+esc(t.id)+'"'+(v===t.id?" selected":"")+'>'+esc(t.name)+'</option>';}).join("")+'</select></div>';}).join("")+'</div></div>';
+  var nUp=0,chg=[];if(imp&&imp.rows){P.master.dupe.forEach(function(d){var c=dupeChanges(d);if(c.length)chg.push({d:d,c:c});});nUp=imp.overwrite?chg.length:0;}
+  var tile=function(n,l){return '<div class="tile"><span class="num">'+n+'</span><span>'+l+'</span></div>';};
+  h+='<div class="card"><h3>What will happen</h3><div class="tiles">'+tile(P.master.add.length+P.newGuys.length,"New rushees")+tile(nUp,"Rushees updated")+tile(P.assign.length+P.assignUpd.length,"This week’s assignments")+tile(P.past.length+P.pastUpd.length,"Past lunches")+tile(P.texts.length,"Past texts")+tile(P.notes.length,"Notes")+'</div>'+
+    '<ul class="small" style="margin:0;padding-left:18px"><li><b>This week’s tab</b> becomes assignments on each brother’s My rush, with Reached out, dates and places carried over.</li><li><b>Past tabs:</b> “Meeting scheduled: Yes” is saved as a done lunch, “Reached out: Yes” as a text. Nothing lands in Left over.</li><li>Notes are saved under the brother who wrote them. Running this again later only adds what’s new.</li>'+(P.skipped?'<li class="muted">'+P.skipped+' rows skipped (brother not matched or set to skip).</li>':'')+'</ul>'+
+    (imp&&imp.rows&&chg.length?'<label class="small" style="display:flex;gap:10px;align-items:flex-start"><input type="checkbox" data-change="wb-over"'+(imp.overwrite?" checked":"")+' style="flex:none;margin-top:3px;width:18px;height:18px;accent-color:var(--purple)"><span>Update changed details from '+esc(W.masterSheet)+' ('+chg.length+' guy'+(chg.length===1?"":"s")+')</span></label><details class="small"><summary>See the changes</summary>'+chg.slice(0,80).map(function(x){var r=S.rushees.get(x.d.id)||{};return '<div><b>'+esc(r.name||"")+'</b> · '+x.c.map(function(c){return esc(c.label)+': '+(c.from?'<s class="muted">'+esc(String(c.from).slice(0,40))+'</s> → ':'')+esc(String(c.to).slice(0,40));}).join(" · ")+'</div>';}).join("")+'</details>':'')+'</div>';
+  if(ui.wbk.progress!=null)h+='<div class="progress"><i style="width:'+Math.round(ui.wbk.progress*100)+'%"></i></div><div class="small muted">'+esc(ui.wbk.progressText||"")+'</div>';
+  else{var total=P.master.add.length+P.newGuys.length+nUp+P.assign.length+P.assignUpd.length+P.past.length+P.pastUpd.length+P.texts.length+P.notes.length;
+    h+='<div class="row"><button class="btn primary" data-a="wb-go"'+(P.unmatched||!total?" disabled":"")+'>'+(P.unmatched?"Match "+P.unmatched+" more name"+(P.unmatched===1?"":"s")+" first":(total?"Import everything":"Nothing new to import"))+'</button></div>';}
+  return h;}
+function runWorkbook(){
+  var W=ui.wbk;var P=wbPlan();var t=myTeam();var me_=t?t.id:"";var ids={};var ops=[];var now=Date.now();
+  var al=Object.assign({},S.config.brotherAliases||{});Object.keys(W.bmap).forEach(function(k){if(W.bmap[k])al[k]=W.bmap[k];});
+  var imp=ui.imp;
+  if(imp&&imp.rows){
+    P.master.add.forEach(function(o){var k="new:"+norm(o.name);var id=newId("r");ids[k]=id;ops.push(["set","rushees/"+id,Object.assign({stage:P.stageMet[k]?"met":"new",pointId:"",createdAt:now,createdBy:me_,source:"import"},o,{phone:cleanPhone(o.phone||"")})]);});
+    if(imp.overwrite)P.master.dupe.forEach(function(d){var c=dupeChanges(d);if(!c.length)return;var cur=S.rushees.get(d.id)||{};var pt={};var ex=null;c.forEach(function(x){if(x.k==="extra"){ex=ex||Object.assign({},cur.extra||{});ex[x.ek]=x.to;}else pt[x.k]=x.to;});if(ex)pt.extra=ex;ops.push(["update","rushees/"+d.id,pt]);});
+  }
+  P.newGuys.forEach(function(g){var k="new:"+norm(g.name);if(ids[k])return;var id=newId("r");ids[k]=id;ops.push(["set","rushees/"+id,{name:g.name,phone:g.phone||"",stage:P.stageMet[k]?"met":"new",pointId:"",createdAt:now,createdBy:me_,source:"sheet",extra:{}}]);});
+  var R_=function(rid){return ids[rid]||rid;};
+  P.assign.forEach(function(it){var id=newId("l");it.lunchId=id;ops.push(["set","lunches/"+id,{kind:"Lunch",date:it.date||"",time:"",place:it.place||"",details:"",rusheeIds:[R_(it.rid)],teamIds:[it.tid],status:"planned",reachedOut:it.reached,reachedAt:it.reached?now:null,week:it.wk,source:"sheet",sheetKey:it.key,createdAt:now,createdBy:me_}]);});
+  P.assignUpd.concat(P.pastUpd).forEach(function(u){ops.push(["update","lunches/"+u.id,u.patch]);});
+  P.past.forEach(function(it){var id=newId("l");it.lunchId=id;var d=it.date||it.wk;ops.push(["set","lunches/"+id,{kind:"Lunch",date:d,time:"",place:it.place||"",details:"",rusheeIds:[R_(it.rid)],teamIds:[it.tid],status:"done",doneAt:dms(d),reachedOut:true,week:it.wk,source:"sheet",sheetKey:it.key,createdAt:now,createdBy:me_}]);});
+  P.texts.forEach(function(it){ops.push(["set","reachouts/"+newId("o"),{rusheeId:R_(it.rid),by:it.tid,at:dms(it.wk),kind:"lunch",sheetKey:it.key}]);});
+  P.notes.forEach(function(it){ops.push(["set","notes/"+newId("n"),{rusheeId:R_(it.rid),teamId:it.tid,uid:null,lunchId:it.lunchId||null,text:it.note,rating:null,createdAt:dms(it.date||it.wk),source:"sheet"}]);});
+  Object.keys(P.stageMet).forEach(function(rid){if(rid.indexOf("new:")===0)return;var r=S.rushees.get(rid);if(r&&(r.stage||"new")==="new")ops.push(["update","rushees/"+rid,{stage:"met"}]);});
+  var chunks=[];for(var i=0;i<ops.length;i+=300)chunks.push(ops.slice(i,i+300));
+  var done=0;W.progress=0;W.progressText="Saving…";render();
+  var setBar=function(){W.progress=ops.length?done/ops.length:1;W.progressText=done+" of "+ops.length+" saved";var bar=document.querySelector(".progress i");if(bar){bar.style.width=Math.round(W.progress*100)+"%";var tx=bar.parentNode.nextElementSibling;if(tx)tx.textContent=W.progressText;}};
+  db.doc("config/main").update({brotherAliases:al}).catch(function(){return db.doc("config/main").set(Object.assign({},S.config,{brotherAliases:al}));}).catch(function(){})
+  .then(function(){return chunks.reduce(function(pr,ch){return pr.then(function(){var b=db.batch();ch.forEach(function(o){var ref=db.doc(o[1]);if(o[0]==="set")b.set(ref,o[2]);else b.update(ref,o[2]);});return b.commit().then(function(){done+=ch.length;setBar();});});},Promise.resolve());})
+  .then(function(){W.progress=1;W.progressText="Done. Everything is in.";render();toast("Workbook imported");setTimeout(function(){ui.wbk=null;ui.imp=null;location.hash="board";},1200);},
+    function(e){W.progress=null;render();toast(e&&e.code==="permission-denied"?"Only coordinators can import.":"Stopped after "+done+" saves. Tap Import again; it only adds what’s missing.");});
+}
+window.__wbTest=function(names,rowsBy){ui.wbk=buildWorkbook(names,function(n){return rowsBy[n];});render();};
+
 function loadRows(rows,extra){
   if(!rows.length||rows.length<2){ui.imp={msg:"I couldn't find a header row plus at least one rushee. Check the file and try again."};render();return;}
   var width=Math.max.apply(null,rows.map(function(r){return r.length;}));
   var headers=rows[0].map(function(h){return String(h==null?"":h).trim();});while(headers.length<width)headers.push("");
   ui.imp=Object.assign({headers:headers,rows:rows.slice(1),map:guessMap(headers),updateDupes:false,progress:null},extra||{});
-  render();
+  if(!(extra&&extra.silent))render();
 }
 function loadXLSX(){
   return new Promise(function(res,rej){
@@ -1352,6 +1478,8 @@ function readFile(file){
   if(/\.(xlsx|xls)$/.test(name)){
     loadXLSX().then(function(X){return file.arrayBuffer().then(function(buf){
       var wb=X.read(buf,{type:"array"});ui.wb=wb;var sheet=wb.SheetNames[0];
+      var W=buildWorkbook(wb.SheetNames,function(n){return X.utils.sheet_to_json(wb.Sheets[n],{header:1,defval:"",raw:false});});
+      if(W){ui.wbk=W;render();return;}
       loadRows(X.utils.sheet_to_json(wb.Sheets[sheet],{header:1,defval:"",raw:false}),{sheets:wb.SheetNames,sheet:sheet});
     });}).catch(function(){ui.imp={msg:"Couldn't read that Excel file. Try saving it as CSV and uploading that."};render();});
   } else {
@@ -1361,14 +1489,16 @@ function readFile(file){
 function runImport(){
   var plan=importPlan();var imp=ui.imp;
   var jobs=plan.add.map(function(o){return {type:"add",o:o};});
-  if(imp.updateDupes)plan.dupe.forEach(function(d){jobs.push({type:"upd",id:d.id,o:d.o});});
+  if(imp.overwrite)plan.dupe.forEach(function(d){var c=dupeChanges(d);if(c.length)jobs.push({type:"chg",id:d.id,c:c});});
+  else if(imp.updateDupes)plan.dupe.forEach(function(d){jobs.push({type:"upd",id:d.id,o:d.o});});
   var t=myTeam();var i=0,ok=0,fail=0;
   imp.progress=0;imp.progressText="Starting…";render();
   function next(){
-    if(i>=jobs.length){imp.progress=1;imp.progressText="Imported "+ok+(fail?" · "+fail+" failed":"")+".";render();toast("Imported "+ok+" rushee"+(ok===1?"":"s"));
+    if(i>=jobs.length){imp.progress=1;imp.progressText="Done: "+ok+(fail?" · "+fail+" failed":"")+".";render();toast("Done: "+ok+" rushee"+(ok===1?"":"s")+" added or updated");
       setTimeout(function(){ui.imp=null;location.hash="rushees";},900);return;}
     var j=jobs[i++];var p;
     if(j.type==="add"){var id=newId("r");var data=Object.assign({stage:"new",pointId:"",createdAt:Date.now(),createdBy:t?t.id:"",source:"import"},j.o);p=db.doc("rushees/"+id).set(data);}
+    else if(j.type==="chg"){var cur2=S.rushees.get(j.id)||{};var patch2={};var ex2=null;j.c.forEach(function(c){if(c.k==="extra"){ex2=ex2||Object.assign({},cur2.extra||{});ex2[c.ek]=c.to;}else patch2[c.k]=c.to;});if(ex2)patch2.extra=ex2;p=db.doc("rushees/"+j.id).update(patch2);}
     else{var cur=S.rushees.get(j.id)||{};var patch={};Object.keys(j.o).forEach(function(k){if(k==="extra"){var ex=Object.assign({},j.o.extra,cur.extra||{});patch.extra=ex;}else if(!cur[k]&&j.o[k])patch[k]=j.o[k];});p=Object.keys(patch).length?db.doc("rushees/"+j.id).update(patch):Promise.resolve();}
     p.then(function(){ok++;},function(e){fail++;if(e&&(e.code==="quota_exceeded"||e.code==="invalid_argument")){i=jobs.length;toast(errMsg(e));}})
      .then(function(){imp.progress=i/jobs.length;imp.progressText=i+" of "+jobs.length;
@@ -1512,7 +1642,7 @@ function modalHTML(){
     h+='<form class="section" data-form="sublunch"><div class="spread"><h2>Log a lunch</h2><button type="button" class="btn sm ghost" data-a="close-modal">Cancel</button></div>'+
       '<p class="muted small" style="margin:0">Went to lunch or coffee with a guy you weren\'t assigned? Log it here. Jonah and Clark will review it and add it to the official record.</p>'+
       '<div class="fields"><div class="field" style="grid-column:1/-1"><label for="sl-r">Who did you go with? *</label><input type="text" id="sl-r" name="rushee" list="rlistall" required placeholder="Start typing his name"><datalist id="rlistall">'+arr(S.rushees).sort(byName).map(function(x){return '<option value="'+esc(x.name)+'">';}).join("")+'</datalist></div>'+
-      '<div class="field"><label for="sl-d">Date *</label><input type="date" id="sl-d" name="date" required value="'+today()+'"></div>'+
+      '<div class="field"><label for="sl-d">Date *</label><input type="date" id="sl-d" name="date" required max="'+today()+'" value="'+today()+'"></div>'+
       '<div class="field"><label for="sl-t">Time</label><input type="time" id="sl-t" name="time"></div>'+
       '<div class="field"><label for="sl-p">Where</label><input type="text" id="sl-p" name="place" placeholder="SUB, Common Grounds…"></div></div>'+
       '<div class="field"><label>How interested is he? (1 = not interested, 5 = ready to join)</label><div class="rate">'+[1,2,3,4,5].map(function(n){return '<label><input type="radio" name="rating" value="'+n+'"><span>'+n+'</span></label>';}).join("")+'</div></div>'+
@@ -1525,7 +1655,7 @@ function modalHTML(){
       '<div class="field"><label for="se-ok">Type END to confirm</label><input id="se-ok" name="ok" required autocomplete="off"></div>'+
       '<div class="row"><button class="btn danger" type="submit">Archive the season</button></div></form>';
   } else if(m.type==="cal"){
-    var lc=S.lunches.get(m.id);var ci=lc&&lc.date?calInfo(lc):null;
+    var lc=S.lunches.get(m.id)||(m.lunch?Object.assign({id:m.id},m.lunch):null);var ci=lc&&lc.date?calInfo(lc):null;
     h+='<div class="section"><div class="spread"><h2>Add to calendar</h2><button type="button" class="btn sm ghost" data-a="close-modal">Done</button></div>'+
       (ci?'<p class="muted small" style="margin:0">'+esc(ci.title)+' · '+esc(fmtDate(lc.date))+' · '+esc(fmtTime(lc.time)||"12:00 PM")+(ci.place?" · "+esc(ci.place):"")+'</p>'+
       '<div class="list">'+
@@ -1533,6 +1663,16 @@ function modalHTML(){
       '<a class="item calopt" href="'+esc(ci.google)+'" target="_blank" rel="noopener"><span class="main"><b>Google Calendar</b><small>Opens with the lunch filled in.</small></span></a>'+
       '<a class="item calopt" href="'+esc(ci.outlook)+'" target="_blank" rel="noopener"><span class="main"><b>Outlook</b><small>For your Baylor calendar.</small></span></a></div>'+
       '<p class="small muted" style="margin:0">Apple Calendar not opening from the home-screen app? Open baylor-byx.github.io in Safari and try again there.</p>':'<div class="empty">This lunch has no date yet.</div>')+'</div>';
+  } else if(m.type==="planown"){
+    h+='<form class="section" data-form="planown"><div class="spread"><h2>Plan a lunch</h2><button type="button" class="btn sm ghost" data-a="close-modal">Cancel</button></div>'+
+      '<p class="muted small" style="margin:0">Set up a lunch or coffee with a guy on your own? Put it here and it goes on your schedule and the rush calendar.</p>'+
+      '<div class="fields"><div class="field" style="grid-column:1/-1"><label for="po-r">Who are you meeting? *</label><input type="text" id="po-r" name="rushee" list="rlistall2" required placeholder="Start typing his name"><datalist id="rlistall2">'+arr(S.rushees).filter(ACTIVE).sort(byName).map(function(x){return '<option value="'+esc(x.name)+'">';}).join("")+'</datalist></div>'+
+      '<div class="field"><label for="po-k">What</label><select id="po-k" name="kind"><option>Lunch</option><option>Coffee</option><option>Dinner</option><option>Hangout</option></select></div>'+
+      '<div class="field"><label for="po-d">Date *</label><input type="date" id="po-d" name="date" required min="'+today()+'" value="'+today()+'"></div>'+
+      '<div class="field"><label for="po-t">Time</label><input type="time" id="po-t" name="time"></div>'+
+      '<div class="field"><label for="po-p">Where</label><input type="text" id="po-p" name="place" placeholder="SUB, Common Grounds…"></div></div>'+
+      '<div class="row"><button class="btn primary" type="submit">Add to my schedule</button></div>'+
+      '<p class="small muted" style="margin:0">Already happened? Use Log a lunch I went on instead.</p></form>';
   } else if(m.type==="sublogged"){
     var nLogged=Math.max(1,arr(S.submissions).filter(function(x){return x.type==="lunch"&&x.status==="pending"&&x.uid===me.id;}).length);
     var cs2=coordinators();var gx2=extGroup(cs2.map(function(c){return c.phone;}),"Hey "+cs2.map(function(c){return c.name.split(" ")[0];}).join(" and ")+"! I logged "+(nLogged===1?"a lunch":nLogged+" lunches")+" in the BYX Rush Portal for you to review.","Jonah & Clark");
@@ -1572,7 +1712,7 @@ function modalHTML(){
       msgArea(fmsg,R2?R2.phone:"")+EDITHINT+'<div class="row">'+
       (fx?'<a class="btn primary" href="'+esc(fx)+'" data-a="ev-follow-sent" data-id="'+esc(m.r)+'">Text '+esc(R2.name.split(" ")[0])+'</a>':'')+
       '<button class="btn'+(fx?' ghost':' primary')+'" data-a="copy-raw" data-v="'+esc((R2&&R2.phone?R2.phone+"\n":"")+fmsg)+'">Copy</button></div>'+
-      '<p class="small muted" style="margin:0">Sending marks him as followed up by you.</p></div>';
+      '<p class="small muted" style="margin:0">Sending marks him as followed up by you.</p>'+(R2&&normPhone(R2.phone)?'<div class="row" style="justify-content:space-between;align-items:center"><span class="small muted">Save him so his texts show up as “'+esc(R2.name)+' · PNM.”</span><button class="btn sm" data-a="save-contact" data-id="'+esc(R2.id)+'">Save to contacts</button></div>':'')+'</div>';
   } else if(m.type==="evgraphic"){
     var EG=S.events.get(m.e)||{};
     h+='<div class="section"><div class="spread"><h2>Event graphic</h2><button type="button" class="btn sm ghost" data-a="close-modal">Done</button></div>'+
@@ -1588,7 +1728,7 @@ function modalHTML(){
       msgArea(imsg,R?R.phone:"")+EDITHINT+'<div class="row">'+
       (ix?'<a class="btn primary" href="'+esc(ix)+'" target="_blank" rel="noopener noreferrer" data-a="ev-invite-sent" data-id="'+esc(m.r)+'">Text the invite</a>':'')+
       '<button class="btn'+(ix?' ghost':' primary')+'" data-a="ev-invite-copy" data-id="'+esc(m.r)+'" data-v="'+esc((R&&R.phone?R.phone+"\n":"")+imsg)+'">Copy</button></div>'+
-      '<p class="small muted" style="margin:0">Sending marks him as invited by you.</p></div>';
+      '<p class="small muted" style="margin:0">Sending marks him as invited by you.</p>'+(R&&normPhone(R.phone)?'<div class="row" style="justify-content:space-between;align-items:center"><span class="small muted">Save him so his texts show up as “'+esc(R.name)+' · PNM.”</span><button class="btn sm" data-a="save-contact" data-id="'+esc(R.id)+'">Save to contacts</button></div>':'')+'</div>';
   } else if(m.type==="event"){
     var e=m.id?S.events.get(m.id)||{}:{};
     h+='<form class="section" data-form="event"><div class="spread"><h2>'+(m.id?"Edit event":"New event")+'</h2><button type="button" class="btn sm ghost" data-a="close-modal">Cancel</button></div><div class="fields">'+
@@ -1743,6 +1883,7 @@ document.addEventListener("click",function(e){
     case "gfx-save":if(!ui.gfx||!ui.gfx.canvas){toast("One sec, still drawing…");break;}gfxFile().then(function(f){var u=URL.createObjectURL(f);var a=document.createElement("a");a.href=u;a.download=f.name;document.body.appendChild(a);a.click();setTimeout(function(){a.remove();URL.revokeObjectURL(u);},3000);toast("On iPhone, use Share → Save Image");});break;
     case "replied":(function(){var lid=el.dataset.l;updDoc("rushees/"+id,{lastReplyAt:Date.now()}).then(function(){toast("Marked as replied");if(lid)updDoc("lunches/"+lid,{replied:true}).catch(function(){});});})();break;
     case "sub-lunch":ui.modal={type:"sublunch"};render();focusFirst();break;
+    case "plan-own":ui.modal={type:"planown"};render();focusFirst();break;
     case "sub-pnm":ui.modal={type:"subpnm"};render();focusFirst();break;
     case "sub-approve":approveSub(id,el);break;
     case "sub-approve-all":approveAll(el);break;
@@ -1769,7 +1910,8 @@ document.addEventListener("click",function(e){
     case "cal-next":ui.calWeek=addDays(ui.calWeek||weekOf(today()),7);render();break;
     case "cal-today":ui.calWeek=weekOf(today());render();break;
     case "imp-paste":var t=document.getElementById("imppaste");if(t&&t.value.trim())loadRows(parseDelimited(t.value));else toast("Paste your sheet first");break;
-    case "imp-reset":ui.imp=null;render();break;
+    case "imp-reset":ui.imp=null;ui.wbk=null;render();break;
+    case "wb-go":el.disabled=true;runWorkbook();break;
     case "imp-go":el.disabled=true;runImport();break;
   }
 });
@@ -1806,6 +1948,9 @@ document.addEventListener("change",function(e){
   else if(c==="point")updDoc("rushees/"+t.dataset.id,{pointId:t.value}).then(function(){toast("Point brother set");});
   else if(c==="imp-map"){var i=+t.dataset.i;var v=t.value;if(v&&v!=="_skip"){ui.imp.map=ui.imp.map.map(function(x,j){return x===v&&j!==i?"":x;});}ui.imp.map[i]=v;render();}
   else if(c==="imp-update"){ui.imp.updateDupes=t.checked;render();}
+  else if(c==="wb-bro"&&ui.wbk){ui.wbk.bmap[t.dataset.k]=t.value;render();}
+  else if(c==="wb-over"&&ui.imp){ui.imp.overwrite=t.checked;render();}
+  else if(c==="imp-mode"){ui.imp.updateDupes=t.value==="fill";ui.imp.overwrite=t.value==="update";render();}
   else if(c==="imp-sheet"&&ui.wb&&window.XLSX){var sh=t.value;loadRows(window.XLSX.utils.sheet_to_json(ui.wb.Sheets[sh],{header:1,defval:"",raw:false}),{sheets:ui.wb.SheetNames,sheet:sh});}
 });
 document.addEventListener("submit",function(e){
@@ -1896,10 +2041,19 @@ document.addEventListener("submit",function(e){
   } else if(kind==="avoid"){
     var av=String(fd.get("avoid")||"").trim().slice(0,300);
     updDoc("rushees/"+f.dataset.id,{avoid:av}).then(function(){toast(av?"Saved":"Cleared");done();},done);
+  } else if(kind==="planown"){
+    var pn0=norm(fd.get("rushee"));var px=arr(S.rushees).find(function(x){return norm(x.name)===pn0;});
+    if(!px){toast("Pick a guy from the list. If he's new, use Suggest a new PNM first.");done();return;}
+    if(!t){toast("Pick your name on My rush first");done();return;}
+    var pd=String(fd.get("date")||"");if(!pd){toast("Pick a date");done();return;}
+    if(pd<today()){toast("That date already passed. Use Log a lunch I went on.");done();return;}
+    var plid=newId("l");var pdata={kind:fd.get("kind")||"Lunch",date:pd,time:String(fd.get("time")||""),place:String(fd.get("place")||"").trim(),details:"",rusheeIds:[px.id],teamIds:[t.id],status:"planned",reachedOut:true,reachedAt:Date.now(),week:weekOf(pd),selfPlanned:true,createdAt:Date.now(),createdBy:t.id};
+    setDoc("lunches/"+plid,pdata).then(function(){ui.modal={type:"cal",id:plid,lunch:pdata};render();toast("On your schedule");},done);
   } else if(kind==="sublunch"){
     var rn=norm(fd.get("rushee"));var rx=arr(S.rushees).find(function(x){return norm(x.name)===rn;});
     if(!rx){toast("Pick a guy from the list. If he's new, use Suggest a new PNM first.");done();return;}
     if(!t){toast("Pick your name on My rush first");done();return;}
+    if(String(fd.get("date")||"")>today()){toast("That date hasn’t happened yet. Use Plan a lunch for upcoming ones.");done();return;}
     var rt=parseInt(fd.get("rating"),10);
     var sd={type:"lunch",status:"pending",by:t.id,uid:me.id||null,rusheeId:rx.id,date:fd.get("date")||today(),time:String(fd.get("time")||""),place:String(fd.get("place")||"").trim(),note:String(fd.get("note")||"").trim(),rating:rt>=1&&rt<=5?rt:null,createdAt:Date.now()};
     setDoc("submissions/"+newId("s"),sd).then(function(){ui.modal=(sd.rating&&sd.rating<=2&&lowTo().length)?{type:"lowint",rid:rx.id,rating:sd.rating,text:sd.note,logged:true,name:rx.name}:{type:"sublogged",name:rx.name};render();},done);
