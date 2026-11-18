@@ -876,7 +876,7 @@ function vBoard(){
     var okLunches=subs.filter(function(x){return x.type==="lunch"&&!lunchDup(x);}).length;
     h+='<section class="section"><div class="spread"><h3>Needs your review <span class="badge" style="vertical-align:middle">'+subs.length+'</span></h3>'+(okLunches>1?'<button class="btn sm primary" data-a="sub-approve-all">Approve all '+okLunches+' lunches</button>':'')+'</div>'+subs.map(function(x){
       var who=teamName(x.by);var body;
-      if(x.type==="lunch")body='<b>Lunch logged: '+esc(rName(x.rusheeId))+'</b>'+(x.rating?' '+stars(x.rating):'')+(x.rating&&x.rating<=2?' <span class="tag" style="color:var(--warn)">Low interest</span>':'')+'<div class="small muted">'+esc(fmtDate(x.date))+(x.time?" · "+esc(fmtTime(x.time)):"")+(x.place?" · "+esc(x.place):"")+' · submitted by '+esc(who)+' '+esc(ago(x.createdAt))+'</div>'+(x.note?'<div class="small" style="white-space:pre-wrap">"'+esc(x.note)+'"</div>':'')+(lunchDup(x)?'<div class="small" style="color:var(--warn)">Possible duplicate: same brother, guy and date is already logged. Approve all skips this one.</div>':'');
+      if(x.type==="lunch")body='<b>Lunch logged: '+esc(rName(x.rusheeId))+'</b>'+(x.rating?' '+stars(x.rating):'')+(x.rating&&x.rating<=2?' <span class="tag" style="color:var(--warn)">Low interest</span>':'')+'<div class="small muted">'+esc(fmtDate(x.date))+(x.time?" · "+esc(fmtTime(x.time)):"")+(x.place?" · "+esc(x.place):"")+' · submitted by '+esc(who)+' '+esc(ago(x.createdAt))+'</div>'+(x.note?'<div class="small" style="white-space:pre-wrap">"'+esc(x.note)+'"</div>':'')+(lunchDup(x)?'<div class="small" style="color:var(--warn)">Possible duplicate: this brother already has a lunch with him around that date. Approve all skips this one.</div>':'');
       else{var dup=similarRushee(x.name,null);
         body='<b>New PNM: '+esc(x.name)+'</b><div class="small muted">'+esc([x.year,x.phone].filter(Boolean).join(" · ")||"No details")+' · suggested by '+esc(who)+' '+esc(ago(x.createdAt))+'</div>'+(x.note?'<div class="small" style="white-space:pre-wrap">"'+esc(x.note)+'"</div>':'')+(dup?'<div class="small" style="color:var(--warn)">Heads up: '+(norm(dup.name)===norm(x.name)?esc(dup.name)+' is already on the list.':'is this '+esc(dup.name)+', who’s already on the list?')+'</div>':'');}
       return '<div class="sub">'+body+'<div class="row"><button class="btn sm primary" data-a="sub-approve" data-id="'+esc(x.id)+'">Approve</button><button class="btn sm ghost" data-a="sub-reject" data-id="'+esc(x.id)+'">'+(x.type==="lunch"?"Reject":"Don't add")+'</button></div></div>';
@@ -1395,25 +1395,31 @@ function buildWorkbook(names,getRows){
   return W;}
 function wbPlan(){
   var W=ui.wbk;var thisWk=weekOf(today());var nameMap={};arr(S.rushees).forEach(function(r){nameMap[norm(r.name)]=r.id;});
-  var mp=ui.imp&&ui.imp.rows?importPlan():{add:[],dupe:[]};mp.add.forEach(function(o){if(!nameMap[norm(o.name)])nameMap[norm(o.name)]="new:"+norm(o.name);});
+  var mp=ui.imp&&ui.imp.rows?importPlan():{add:[],dupe:[]};var pnmPending=[];mp.add.forEach(function(o){if(!nameMap[norm(o.name)])nameMap[norm(o.name)]="new:"+norm(o.name);arr(S.submissions).forEach(function(x){if(x.status==="pending"&&x.type==="pnm"&&norm(x.name)===norm(o.name)&&pnmPending.indexOf(x.id)<0)pnmPending.push(x.id);});});
   var P={newGuys:[],assign:[],assignUpd:[],past:[],pastUpd:[],texts:[],notes:[],skipped:0,unmatched:0,stageMet:{}};var seen={},newSeen={};
-  var lunchFor=function(rid,tid,wk){return arr(S.lunches).find(function(l){return l.status!=="cancelled"&&(l.rusheeIds||[]).indexOf(rid)>=0&&(l.teamIds||[]).indexOf(tid)>=0&&(l.week?weekOf(l.week):(l.date?weekOf(l.date):""))===wk;});};
+  var near=function(d,wk){return d&&d>=addDays(wk,-3)&&d<=addDays(wk,10);};
+  var lunchFor=function(rid,tid,wk){return arr(S.lunches).find(function(l){return l.status!=="cancelled"&&(l.rusheeIds||[]).indexOf(rid)>=0&&(l.teamIds||[]).indexOf(tid)>=0&&((l.week&&weekOf(l.week)===wk)||near(l.date,wk));});};
+  var pendingFor=function(rid,tid,wk){return arr(S.submissions).some(function(x){return x.status==="pending"&&x.type==="lunch"&&x.rusheeId===rid&&x.by===tid&&near(x.date,wk);});};
+  P.alreadyLogged=0;P.pnmSubs=[];
   W.tabs.forEach(function(tb){var c=tb.c;var cur=tb.week&&tb.week>=thisWk;
     tb.rows.forEach(function(r){var nm=String(r[c.name]||"").trim();var tid=W.bmap[norm(r[c.bro])];
       if(!tid||tid==="_skip"){if(String(r[c.bro]||"").trim())P.skipped++;return;}
       if(!S.team.get(tid)){P.skipped++;return;}
       var k=norm(nm);var rid=nameMap[k];
       if(!rid){rid="new:"+k;nameMap[k]=rid;if(!newSeen[k]){newSeen[k]=1;P.newGuys.push({name:nm,phone:c.phone>=0?cleanPhone(r[c.phone]):""});}}
+      if(rid.indexOf("new:")===0){arr(S.submissions).forEach(function(x){if(x.status==="pending"&&x.type==="pnm"&&norm(x.name)===k&&P.pnmSubs.indexOf(x.id)<0)P.pnmSubs.push(x.id);});}
       var wk=tb.week||thisWk;var key=wk+"|"+rid+"|"+tid;if(seen[key])return;seen[key]=1;
       var reached=c.reached>=0&&yes(r[c.reached]),met=c.met>=0&&yes(r[c.met]);var sd=c.date>=0?sheetDate(r[c.date],wk):{date:"",place:""};
       var note=c.notes>=0?String(r[c.notes]||"").trim():"";
       var ex=rid.indexOf("new:")===0?null:lunchFor(rid,tid,wk);var item={rid:rid,tid:tid,wk:wk,reached:reached,met:met,date:sd.date,place:sd.place,key:key,note:note,tab:tb.name};
       if(cur){if(ex){var pt={};if(reached&&!ex.reachedOut){pt.reachedOut=true;pt.reachedAt=Date.now();}if(sd.date&&!ex.date)pt.date=sd.date;if(sd.place&&!ex.place)pt.place=sd.place;if(Object.keys(pt).length)P.assignUpd.push({id:ex.id,patch:pt,item:item});item.lunchId=ex.id;}else P.assign.push(item);}
+      else if(met&&!ex&&rid.indexOf("new:")!==0&&pendingFor(rid,tid,wk)){P.alreadyLogged++;}
       else if(met){if(ex){if(ex.status!=="done"){P.pastUpd.push({id:ex.id,patch:{status:"done",doneAt:dms(sd.date||ex.date||wk),date:ex.date||sd.date||wk,reachedOut:true},item:item});}item.lunchId=ex.id;}else P.past.push(item);
         var rr=S.rushees.get(rid);if(!rr||(rr.stage||"new")==="new")P.stageMet[rid]=1;}
       else if(reached){var has=rid.indexOf("new:")!==0&&arr(S.reachouts).some(function(x){return x.rusheeId===rid&&x.by===tid&&(x.sheetKey===key||(x.at&&weekOf(iso(new Date(x.at)))===wk));});if(!has&&!ex)P.texts.push(item);}
       if(note){var dup=rid.indexOf("new:")!==0&&arr(S.notes).some(function(n){return n.rusheeId===rid&&norm(n.text)===norm(note);});if(!dup)P.notes.push(item);}
     });});
+  pnmPending.forEach(function(id){if(P.pnmSubs.indexOf(id)<0)P.pnmSubs.push(id);});
   P.master=mp;P.unmatched=Object.keys(W.bmap).filter(function(k){return !W.bmap[k];}).length;
   return P;}
 function vWorkbook(){
@@ -1427,7 +1433,7 @@ function vWorkbook(){
   var nUp=0,chg=[];if(imp&&imp.rows){P.master.dupe.forEach(function(d){var c=dupeChanges(d);if(c.length)chg.push({d:d,c:c});});nUp=imp.overwrite?chg.length:0;}
   var tile=function(n,l){return '<div class="tile"><span class="num">'+n+'</span><span>'+l+'</span></div>';};
   h+='<div class="card"><h3>What will happen</h3><div class="tiles">'+tile(P.master.add.length+P.newGuys.length,"New rushees")+tile(nUp,"Rushees updated")+tile(P.assign.length+P.assignUpd.length,"This week’s assignments")+tile(P.past.length+P.pastUpd.length,"Past lunches")+tile(P.texts.length,"Past texts")+tile(P.notes.length,"Notes")+'</div>'+
-    '<ul class="small" style="margin:0;padding-left:18px"><li><b>This week’s tab</b> becomes assignments on each brother’s My rush, with Reached out, dates and places carried over.</li><li><b>Past tabs:</b> “Meeting scheduled: Yes” is saved as a done lunch, “Reached out: Yes” as a text. Nothing lands in Left over.</li><li>Notes are saved under the brother who wrote them. Running this again later only adds what’s new.</li>'+(P.skipped?'<li class="muted">'+P.skipped+' rows skipped (brother not matched or set to skip).</li>':'')+'</ul>'+
+    '<ul class="small" style="margin:0;padding-left:18px"><li><b>This week’s tab</b> becomes assignments on each brother’s My rush, with Reached out, dates and places carried over.</li><li><b>Past tabs:</b> “Meeting scheduled: Yes” is saved as a done lunch, “Reached out: Yes” as a text. Nothing lands in Left over.</li><li>Notes are saved under the brother who wrote them. Running this again later only adds what’s new.</li>'+(P.alreadyLogged?'<li class="muted">'+P.alreadyLogged+' past lunch'+(P.alreadyLogged===1?" is":"es are")+' already waiting in Needs your review, so the sheet skips '+(P.alreadyLogged===1?"it":"them")+'.</li>':'')+(P.pnmSubs.length?'<li class="muted">'+P.pnmSubs.length+' suggested PNM'+(P.pnmSubs.length===1?" is":"s are")+' also on the sheet, so '+(P.pnmSubs.length===1?"that suggestion is":"those suggestions are")+' approved instead of adding a second copy.</li>':'')+(P.skipped?'<li class="muted">'+P.skipped+' rows skipped (brother not matched or set to skip).</li>':'')+'</ul>'+
     (imp&&imp.rows&&chg.length?'<label class="small" style="display:flex;gap:10px;align-items:flex-start"><input type="checkbox" data-change="wb-over"'+(imp.overwrite?" checked":"")+' style="flex:none;margin-top:3px;width:18px;height:18px;accent-color:var(--purple)"><span>Update changed details from '+esc(W.masterSheet)+' ('+chg.length+' guy'+(chg.length===1?"":"s")+')</span></label><details class="small"><summary>See the changes</summary>'+chg.slice(0,80).map(function(x){var r=S.rushees.get(x.d.id)||{};return '<div><b>'+esc(r.name||"")+'</b> · '+x.c.map(function(c){return esc(c.label)+': '+(c.from?'<s class="muted">'+esc(String(c.from).slice(0,40))+'</s> → ':'')+esc(String(c.to).slice(0,40));}).join(" · ")+'</div>';}).join("")+'</details>':'')+'</div>';
   if(ui.wbk.progress!=null)h+='<div class="progress"><i style="width:'+Math.round(ui.wbk.progress*100)+'%"></i></div><div class="small muted">'+esc(ui.wbk.progressText||"")+'</div>';
   else{var total=P.master.add.length+P.newGuys.length+nUp+P.assign.length+P.assignUpd.length+P.past.length+P.pastUpd.length+P.texts.length+P.notes.length;
@@ -1448,6 +1454,7 @@ function runWorkbook(){
   P.past.forEach(function(it){var id=newId("l");it.lunchId=id;var d=it.date||it.wk;ops.push(["set","lunches/"+id,{kind:"Lunch",date:d,time:"",place:it.place||"",details:"",rusheeIds:[R_(it.rid)],teamIds:[it.tid],status:"done",doneAt:dms(d),reachedOut:true,week:it.wk,source:"sheet",sheetKey:it.key,createdAt:now,createdBy:me_}]);});
   P.texts.forEach(function(it){ops.push(["set","reachouts/"+newId("o"),{rusheeId:R_(it.rid),by:it.tid,at:dms(it.wk),kind:"lunch",sheetKey:it.key}]);});
   P.notes.forEach(function(it){ops.push(["set","notes/"+newId("n"),{rusheeId:R_(it.rid),teamId:it.tid,uid:null,lunchId:it.lunchId||null,text:it.note,rating:null,createdAt:dms(it.date||it.wk),source:"sheet"}]);});
+  P.pnmSubs.forEach(function(id){ops.push(["update","submissions/"+id,{status:"approved",reviewedBy:me_,reviewedAt:now,via:"sheet"}]);});
   Object.keys(P.stageMet).forEach(function(rid){if(rid.indexOf("new:")===0)return;var r=S.rushees.get(rid);if(r&&(r.stage||"new")==="new")ops.push(["update","rushees/"+rid,{stage:"met"}]);});
   var chunks=[];for(var i=0;i<ops.length;i+=300)chunks.push(ops.slice(i,i+300));
   var done=0;W.progress=0;W.progressText="Saving…";render();
@@ -2152,7 +2159,8 @@ function runExport(btn){
   }).catch(function(e){if(!(e&&e.code==="declined"))toast("Couldn't export. Try again.");}).then(function(){btn.disabled=false;});
 }
 function lunchDup(x){
-  return arr(S.lunches).some(function(l){return l.date===x.date&&(l.rusheeIds||[]).indexOf(x.rusheeId)>=0&&(l.teamIds||[]).indexOf(x.by)>=0;})||
+  return arr(S.lunches).some(function(l){if(l.status==="cancelled"||(l.rusheeIds||[]).indexOf(x.rusheeId)<0||(l.teamIds||[]).indexOf(x.by)<0)return false;
+    if(l.date===x.date)return true;if(l.source==="sheet"&&l.status==="done"&&x.date&&l.week){var wk=weekOf(l.week);return x.date>=addDays(wk,-3)&&x.date<=addDays(wk,10);}return false;})||
     arr(S.submissions).some(function(y){return y.id!==x.id&&y.type==="lunch"&&y.status==="pending"&&y.by===x.by&&y.rusheeId===x.rusheeId&&y.date===x.date&&(y.createdAt||0)<(x.createdAt||0);});
 }
 function approveAll(btn){
