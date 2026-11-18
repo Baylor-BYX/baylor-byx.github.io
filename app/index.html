@@ -287,6 +287,16 @@ th select{min-width:130px;padding:5px 7px;font-size:13px}
 @media print{nav.tabs,.noprint,.banner,header .me,#toast{display:none!important}body{background:#fff}.tile,.section,.card{break-inside:avoid}}
 .nonav nav.tabs{display:none!important}
 .calopt{text-decoration:none;color:inherit;font:inherit;background:none;border:0;border-top:1px solid var(--line)}.calopt:first-child{border-top:0}.calopt small{white-space:normal;overflow:visible;text-overflow:clip}.calopt b{color:var(--accent,#4F2D7F)}
+.photo-btn{padding:0;border:0;background:none;cursor:zoom-in;border-radius:14px}
+.lightbox{position:fixed;inset:0;z-index:200;background:rgba(20,10,32,.92);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:24px;cursor:zoom-out}
+.lightbox img{max-width:100%;max-height:78vh;border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+.lb-cap{color:#fff;font-family:var(--display);font-weight:800;font-size:20px;text-transform:uppercase;letter-spacing:.06em;text-align:center;display:flex;flex-direction:column;gap:4px}
+.lb-cap span{font-family:var(--body,inherit);font-weight:600;font-size:13px;text-transform:none;letter-spacing:0;opacity:.7}
+.gfx-wrap{display:flex;justify-content:center;background:var(--bg);border-radius:14px;padding:12px}
+.gfx-wrap img{max-width:100%;max-height:52vh;border-radius:10px;box-shadow:0 10px 30px rgba(55,24,89,.18)}
+.tie{display:inline-block;white-space:nowrap;font-size:11.5px;font-weight:800;color:#371859;background:#E9F09F;border-radius:999px;padding:1px 8px;vertical-align:middle}
+.tie-line{display:block;margin-top:3px;line-height:1}
+.ties{border-left:4px solid #CCDE57}
 </style>
 </head>
 <body>
@@ -317,7 +327,7 @@ var HEADER_GUESS={
   interests:["interests","hobbies","notes","about","comments"]
 };
 
-var S={rushees:new Map(),team:new Map(),lunches:new Map(),notes:new Map(),events:new Map(),checkins:new Map(),reachouts:new Map(),submissions:new Map(),config:{season:"Spring 2027 Rush",chapter:"Iota Chapter"},loaded:{}};
+var S={knows:new Map(),rushees:new Map(),team:new Map(),lunches:new Map(),notes:new Map(),events:new Map(),checkins:new Map(),reachouts:new Map(),submissions:new Map(),config:{season:"Spring 2027 Rush",chapter:"Iota Chapter"},loaded:{}};
 var db=null,user=null,assetsApi=null,sampleApi=null,dictApi=null,dlApi=null,micFor=null,micState="idle";
 var me={id:null,isOwner:false,canWrite:null};
 var status="connecting", readOnly=false;
@@ -704,11 +714,59 @@ function lunchCard(l,opts){
     (l.status==="planned"?(l.rusheeIds||[]).map(function(rid){var rr=S.rushees.get(rid);return rr&&rr.avoid?'<div class="avoid"><b>⚠ Avoid with '+esc(rr.name.split(" ")[0])+':</b> '+esc(rr.avoid)+'</div>':"";}).join(""):"")+
     (actions?'<div class="row">'+actions+'</div>':"")+sched+'</div>';
 }
+function canSeeTies(){return !me.viewer&&(me.isOwner||isCoord());}
+function knowsFor(rid){return arr(S.knows).filter(function(k){return k.rusheeId===rid;});}
+function ties(rid){
+  var r=S.rushees.get(rid);if(!r)return [];var out={};
+  var get=function(tid){if(!S.team.get(tid))return null;return out[tid]=out[tid]||{tid:tid,lunch:0,planned:0,notes:0,texts:0,knows:false,referred:false,score:0};};
+  arr(S.lunches).forEach(function(l){if((l.rusheeIds||[]).indexOf(rid)<0)return;(l.teamIds||[]).forEach(function(tid){var o=get(tid);if(!o)return;if(l.status==="done")o.lunch++;else if(l.status==="planned"&&l.reachedOut)o.planned++;});});
+  arr(S.notes).forEach(function(n){if(n.rusheeId===rid&&n.teamId&&n.source!=="import"){var o=get(n.teamId);if(o)o.notes++;}});
+  arr(S.reachouts).forEach(function(x){if(x.rusheeId===rid&&x.by){var o=get(x.by);if(o)o.texts++;}});
+  knowsFor(rid).forEach(function(k){var o=get(k.teamId);if(o)o.knows=true;});
+  var ref=norm(r.referredBy||"");if(ref)arr(S.team).forEach(function(tm){var nm=norm(tm.name);if(nm&&(ref.indexOf(nm)>=0||(nm.length>3&&nm.indexOf(ref)>=0&&ref.length>3))){var o=get(tm.id);if(o)o.referred=true;}});
+  return Object.keys(out).map(function(k){var o=out[k];o.score=o.lunch*5+o.planned+o.notes*2+Math.min(o.texts,5)+(o.knows?8:0)+(o.referred?6:0);return o;})
+    .filter(function(o){return o.score>0;}).sort(function(a,b){return b.score-a.score||teamName(a.tid).localeCompare(teamName(b.tid));});
+}
+function tieWhy(o){var w=[];if(o.knows)w.push("knows him");if(o.referred)w.push("referred him");if(o.lunch)w.push(o.lunch+" lunch"+(o.lunch===1?"":"es"));if(o.notes)w.push(o.notes+" note"+(o.notes===1?"":"s"));if(o.texts)w.push(o.texts+" text"+(o.texts===1?"":"s"));if(o.planned&&!o.lunch)w.push("lunch in the works");return w.join(" · ");}
+function closestTag(rid){if(!canSeeTies())return "";var t=ties(rid)[0];return t?'<span class="tie" title="'+esc(tieWhy(t))+'">♦ Closest: '+esc(teamName(t.tid).split(" ")[0])+'</span>':"";}
+function tiesSection(r){
+  if(!canSeeTies())return "";var list=ties(r.id).slice(0,4);
+  var opts=arr(S.team).filter(function(tm){return !knowsFor(r.id).some(function(k){return k.teamId===tm.id;});}).sort(byName);
+  return '<section class="section ties"><h3>Closest on the team <span class="tag">Coordinators only</span></h3>'+
+    (list.length?'<div class="list">'+list.map(function(o,i){return '<div class="item" style="cursor:default"><span class="avatar">'+esc(initials(teamName(o.tid)))+'</span><span class="main"><b>'+esc(teamName(o.tid))+(i===0?' <span class="tie">Strongest</span>':'')+'</b><small>'+esc(tieWhy(o))+'</small></span>'+
+      (o.knows?'<span class="side"><button class="btn sm ghost" data-a="know-del" data-id="'+esc(r.id)+'" data-v="'+esc(o.tid)+'">Unmark</button></span>':'')+'</div>';}).join("")+'</div>'
+      :'<div class="empty">No connections yet. Lunches, notes, texts and “knows him” build this up.</div>')+
+    (readOnly?'':'<form class="row" data-form="know" data-id="'+esc(r.id)+'" style="gap:8px"><select name="tid" aria-label="Brother who knows him" style="flex:1"><option value="">Brother who knows him personally…</option>'+opts.map(function(tm){return '<option value="'+esc(tm.id)+'">'+esc(tm.name)+'</option>';}).join("")+'</select><button class="btn sm" type="submit">Add</button></form>')+
+    '<p class="small muted" style="margin:0">Strongest = most lunches, notes and texts with him, plus anyone who knows him personally or referred him. Use it to pick who texts him about events and follow-ups.</p></section>';
+}
+function iKnowRow(r){
+  var t=myTeam();if(readOnly||!t||canSeeTies())return "";
+  var mine=S.knows.get(r.id+"__"+t.id);
+  return '<div class="row" style="justify-content:space-between;align-items:center"><span class="small muted">Know him outside of rush? Only coordinators see this.</span>'+
+    (mine?'<button class="btn sm" data-a="know-del" data-id="'+esc(r.id)+'" data-v="'+esc(t.id)+'">✓ I know him</button>':'<button class="btn sm ghost" data-a="know-add" data-id="'+esc(r.id)+'">I know him personally</button>')+'</div>';
+}
+function vcardFor(r){
+  var esc3=function(x){return String(x||"").replace(/\\/g,"\\\\").replace(/[,;]/g,function(c){return "\\"+c;}).replace(/\n/g,"\\n");};
+  var parts=String(r.name||"").trim().split(/\s+/);var first=parts.shift()||"";var last=parts.join(" ");
+  var tel=normPhone(r.phone)||String(r.phone||"");
+  var note=["BYX rush",r.year,r.major,r.hometown].filter(Boolean).join(" · ");
+  return ["BEGIN:VCARD","VERSION:3.0","N:"+esc3(last)+";"+esc3(first)+";;;","FN:"+esc3(r.name),"ORG:PNM",tel?"TEL;TYPE=CELL:"+tel:"","NOTE:"+esc3(note),"END:VCARD"].filter(Boolean).join("\r\n");
+}
+function saveContacts(rids,label){
+  var rs=rids.map(function(id){return S.rushees.get(id);}).filter(function(r){return r&&normPhone(r.phone);});
+  if(!rs.length){toast("No phone numbers to save");return;}
+  if(me.preview){toast("Preview only: this would save "+rs.length+" contact"+(rs.length===1?"":"s")+".");return;}
+  var text=rs.map(vcardFor).join("\r\n");var name=(rs.length===1?rs[0].name.replace(/[^a-z0-9]+/gi,"-"):"BYX-PNMs")+".vcf";
+  var file;try{file=new File([text],name,{type:"text/vcard"});}catch(e){file=null;}
+  if(file&&navigator.canShare&&navigator.canShare({files:[file]})){navigator.share({files:[file]}).catch(function(){});return;}
+  var url=URL.createObjectURL(new Blob([text],{type:"text/vcard;charset=utf-8"}));var a=document.createElement("a");a.href=url;a.download=name;document.body.appendChild(a);a.click();
+  setTimeout(function(){a.remove();URL.revokeObjectURL(url);},4000);
+}
 function rusheeItem(r){
   var ls_=lunchesFor(r.id).filter(function(l){return l.status!=="cancelled";}).length;var ns=notesFor(r.id).length;
   var sub=[r.year,r.major,r.hometown].filter(Boolean).join(" · ")||"No details yet";
   return '<button class="item" data-a="open-r" data-id="'+esc(r.id)+'">'+avatarHTML(r)+''+
-    '<span class="main"><b>'+esc(r.name)+'</b><small>'+esc(sub)+'</small></span>'+
+    '<span class="main"><b>'+esc(r.name)+'</b><small>'+esc(sub)+'</small>'+(canSeeTies()?(function(){var c=closestTag(r.id);return c?'<span class="tie-line">'+c+'</span>':'';})():'')+'</span>'+
     '<span class="side">'+pill(r.stage)+'<small class="muted small"><span class="num">'+ls_+'</span> lunch'+(ls_===1?"":"es")+' · <span class="num">'+ns+'</span> note'+(ns===1?"":"s")+' '+stars(avgRating(r.id))+'</small></span></button>';
 }
 function noteForm(id,rid,lunchId,label){
@@ -737,7 +795,7 @@ function vMe(){
   h+='<div class="tiles"><div class="tile'+(toSched.length?" alert":"")+'"><span class="num">'+toSched.length+'</span><span>To schedule</span></div><div class="tile"><span class="num">'+upcoming.length+'</span><span>Scheduled</span></div>'+
      '<div class="tile'+(owed.length?" alert":"")+'"><span class="num">'+owed.length+'</span><span>Notes you owe</span></div>'+
      '<div class="tile"><span class="num">'+myR.length+'</span><span>Your guys</span></div></div>';
-  if(!readOnly)h+='<div class="row"><button class="btn" data-a="sub-lunch">+ Log a lunch I went on</button><button class="btn" data-a="sub-pnm">+ Suggest a new PNM</button></div>';
+  if(!readOnly)h+='<div class="row"><button class="btn" data-a="sub-lunch">+ Log a lunch I went on</button><button class="btn" data-a="sub-pnm">+ Suggest a new PNM</button>'+(myR.length?'<button class="btn ghost" data-a="save-contacts-mine">Save my guys to contacts</button>':'')+'</div>';
   var mySubs=arr(S.submissions).filter(function(x){return x.by===t.id&&x.status==="pending";}).sort(function(a,b){return (b.createdAt||0)-(a.createdAt||0);});
   if(mySubs.length>3)h+='<div class="small muted" style="padding:2px 4px">You have <b>'+mySubs.length+'</b> submissions waiting for Jonah and Clark to review. They disappear from here once reviewed.</div>';
   else if(mySubs.length)h+='<section class="section"><h3>Waiting for review</h3><div class="list">'+mySubs.map(function(x){
@@ -904,6 +962,7 @@ function inviteListHTML(e){
   var invited=rs.filter(function(r){return inv[r.id];}).sort(byName),not=rs.filter(function(r){return !inv[r.id];}).sort(byName);
   var row=function(r){var list=inv[r.id];var last=list?list[list.length-1]:null;var ph=normPhone(r.phone);
     var info=last?"Invited by "+teamName(last.by).split(" ")[0]+" · "+ago(last.at)+(list.length>1?" ("+list.length+"×)":""):(r.year||"");
+    if(canSeeTies()){var ct2=ties(r.id)[0];if(ct2)info+=(info?" · ":"")+"Closest: "+teamName(ct2.tid).split(" ")[0];}
     return '<div class="checkrow" style="cursor:default">'+avatarHTML(r)+'<span class="main" style="flex:1;min-width:0"><b style="display:block">'+esc(r.name)+(here[r.id]?' <span class="sc good">Came</span>':'')+'</b><small class="muted">'+esc(info)+'</small></span>'+
       (readOnly?'':ph?'<button class="btn sm '+(last?"ghost":"primary")+'" data-a="ev-invite" data-id="'+esc(r.id)+'">'+(last?"Invite again":"Invite")+'</button>':'<span class="tag">No number</span>')+'</div>';};
   return '<h3>Invited <span class="num">'+invited.length+'</span></h3>'+(invited.length?'<div class="list">'+invited.map(row).join("")+'</div>':'<div class="empty">No one invited yet.</div>')+
@@ -925,13 +984,81 @@ function doorHTML(e){
   else h+='<input type="search" id="doorq" placeholder="Type your name…" value="'+esc(ui.doorq)+'" autocomplete="off" aria-label="Your name"><div class="res" id="doorres">'+doorResHTML(e)+'</div>';
   return h+'</div></div>';
 }
+function fullDate(d){if(!d)return "";var p=d.split("-");return new Date(+p[0],+p[1]-1,+p[2]).toLocaleDateString(undefined,{weekday:"long",month:"long",day:"numeric"});}
+function loadImg(src){return new Promise(function(res,rej){var i=new Image();i.onload=function(){res(i);};i.onerror=rej;i.src=src;});}
+function wrapLines(ctx,text,maxW){var words=String(text||"").split(/\s+/).filter(Boolean),lines=[],cur="";words.forEach(function(w){var t=cur?cur+" "+w:w;if(ctx.measureText(t).width>maxW&&cur){lines.push(cur);cur=w;}else cur=t;});if(cur)lines.push(cur);return lines;}
+function drawEventGraphic(e,tpl,size){
+  var W=1080,H=size==="square"?1080:1920,sq=size==="square";var c=document.createElement("canvas");c.width=W;c.height=H;var x=c.getContext("2d");
+  var P={plum:{bg1:"#4F2D7F",bg2:"#2A1145",ink:"#FFFFFF",sub:"#DCD2EC",acc:"#CCDE57",logo:"white",sh:0.07},light:{bg1:"#FFFFFF",bg2:"#ECE7F4",ink:"#371859",sub:"#55505E",acc:"#4F2D7F",logo:"#4F2D7F",sh:0.05},gold:{bg1:"#DCEB72",bg2:"#C2D44A",ink:"#371859",sub:"#3F2A55",acc:"#371859",logo:"#371859",sh:0.07}}[tpl]||{};
+  var fontsReady=document.fonts&&document.fonts.load?Promise.all(["800 120px Saira","700 40px Saira","700 40px 'Nunito Sans'","400 40px 'Nunito Sans'"].map(function(f){return document.fonts.load(f).catch(function(){});})):Promise.resolve();
+  var ls=function(ctx,v){if(ctx.letterSpacing!==undefined)ctx.letterSpacing=v;};
+  return Promise.all([fontsReady,loadImg(LOGO)]).then(function(r){
+    var logo=r[1];
+    var g=x.createLinearGradient(0,0,W*0.4,H);g.addColorStop(0,P.bg1);g.addColorStop(1,P.bg2);x.fillStyle=g;x.fillRect(0,0,W,H);
+    x.save();x.globalAlpha=P.sh;x.fillStyle=P.ink;
+    for(var yy=-60;yy<H+200;yy+=230){for(var xx=(Math.round(yy/230)%2)?40:155;xx<W+120;xx+=230){x.beginPath();x.moveTo(xx,yy);x.lineTo(xx+70,yy+18);x.lineTo(xx+70,yy+80);x.quadraticCurveTo(xx+70,yy+140,xx,yy+170);x.quadraticCurveTo(xx-70,yy+140,xx-70,yy+80);x.lineTo(xx-70,yy+18);x.closePath();x.fill();}}
+    x.restore();
+    var lw=sq?320:400,lh=Math.round(logo.height*lw/logo.width);var lc=document.createElement("canvas");lc.width=lw;lc.height=lh;var lx=lc.getContext("2d");lx.drawImage(logo,0,0,lw,lh);
+    if(P.logo!=="white"){lx.globalCompositeOperation="source-in";lx.fillStyle=P.logo;lx.fillRect(0,0,lw,lh);}
+    var pad=sq?90:100,top=sq?80:130;x.drawImage(lc,pad,top,lw,lh);
+    // content on its own layer so it can be centered
+    var lay=document.createElement("canvas");lay.width=W;lay.height=H;var X=lay.getContext("2d");X.textBaseline="alphabetic";
+    var y=0;var maxW=W-pad*2;
+    X.fillStyle=P.acc;X.font="700 "+(sq?32:38)+"px Saira, sans-serif";ls(X,"6px");y+=sq?32:38;X.fillText(((S.config.chapter||"Iota Chapter")+" · Rush").toUpperCase(),pad,y);ls(X,"0px");
+    y+=sq?28:44;
+    var big=sq?118:176;X.fillStyle=P.ink;X.font="800 "+big+"px Saira, sans-serif";
+    var nm=String(e.name||"Rush event").toUpperCase();var lines=wrapLines(X,nm,maxW);
+    while((lines.length>3||lines.some(function(l){return X.measureText(l).width>maxW;}))&&big>64){big-=10;X.font="800 "+big+"px Saira, sans-serif";lines=wrapLines(X,nm,maxW);}
+    lines.slice(0,3).forEach(function(l){y+=big*0.9;X.fillText(l,pad,y);});
+    y+=sq?40:64;X.fillStyle=P.acc;X.fillRect(pad,y,160,12);y+=12;
+    var valF=sq?54:70,gap=sq?14:18;
+    var rowF=function(label,vals){vals=vals.filter(Boolean);if(!vals.length)return;y+=sq?58:90;X.fillStyle=P.sub;X.font="700 "+(sq?28:32)+"px 'Nunito Sans', sans-serif";ls(X,"5px");X.fillText(label,pad,y);ls(X,"0px");
+      X.fillStyle=P.ink;X.font="800 "+valF+"px Saira, sans-serif";vals.forEach(function(v){wrapLines(X,v,maxW).slice(0,2).forEach(function(l){y+=valF+gap;X.fillText(l,pad,y);});});};
+    rowF("WHEN",[fullDate(e.date),e.time?fmtTime(e.time):""]);
+    rowF("WHERE",[e.place||""]);
+    if(e.details&&!sq){y+=70;X.fillStyle=P.sub;X.font="400 44px 'Nunito Sans', sans-serif";wrapLines(X,e.details,maxW).slice(0,4).forEach(function(l,i){if(i)y+=60;X.fillText(l,pad,y+44);});y+=44;}
+    var areaTop=top+lh+(sq?50:90),areaBot=H-(sq?120:200);
+    var off=Math.max(areaTop,areaTop+((areaBot-areaTop)-y)/2);
+    x.drawImage(lay,0,off);
+    x.fillStyle=P.acc;x.fillRect(0,H-22,W,22);
+    x.fillStyle=P.sub;x.font="700 "+(sq?28:32)+"px 'Nunito Sans', sans-serif";x.fillText("Beta Upsilon Chi · Baylor University",pad,H-(sq?60:80));
+    return c;
+  });
+}
+function renderGfx(){
+  var e=S.events.get(ui.gfx.e);if(!e)return;var key=ui.gfx.t+ui.gfx.s+e.name+e.date+e.time+e.place+e.details;if(ui.gfx.key===key&&ui.gfx.url)return;
+  drawEventGraphic(e,ui.gfx.t,ui.gfx.s).then(function(c){ui.gfx.canvas=c;ui.gfx.url=c.toDataURL("image/png");ui.gfx.key=key;var im=document.getElementById("gfx-img");if(im)im.src=ui.gfx.url;});
+}
+function gfxFile(){var c=ui.gfx.canvas;var e=S.events.get(ui.gfx.e)||{};var name=String(e.name||"event").replace(/[^a-z0-9]+/gi,"-").toLowerCase()+"-"+ui.gfx.s+".png";
+  return new Promise(function(res){c.toBlob(function(b){res(new File([b],name,{type:"image/png"}));},"image/png");});}
+function followMsg(e,rid,came){var r=S.rushees.get(rid);var t=myTeam();var f=r?r.name.split(" ")[0]:"";var me1=t?t.name.split(" ")[0]:"";
+  return came?"Hey "+f+"! This is "+me1+" with BYX. Great to see you at "+e.name+"! Want to grab lunch or coffee this week?"
+    :"Hey "+f+"! This is "+me1+" with BYX. We missed you at "+e.name+"! Would love to grab lunch or coffee this week if you're free.";}
+function followupHTML(e){
+  var here={};checkinsFor(e.id).forEach(function(c){here[c.rusheeId]=c;});
+  var inv={},fu={};arr(S.reachouts).forEach(function(x){if(x.eventId!==e.id)return;if(x.kind==="invite")(inv[x.rusheeId]=inv[x.rusheeId]||[]).push(x);if(x.kind==="followup")(fu[x.rusheeId]=fu[x.rusheeId]||[]).push(x);});
+  var t=myTeam();var mine=function(rid){return t&&(inv[rid]||[]).some(function(x){return x.by===t.id;});};
+  var sortF=function(a,b){return (mine(b.id)?1:0)-(mine(a.id)?1:0)||(fu[a.id]?1:0)-(fu[b.id]?1:0)||byName(a,b);};
+  var came=Object.keys(here).map(function(id){return S.rushees.get(id);}).filter(Boolean).sort(sortF);
+  var missed=Object.keys(inv).filter(function(id){return !here[id];}).map(function(id){return S.rushees.get(id);}).filter(function(r){return r&&r.stage!=="dropped";}).sort(sortF);
+  var row=function(r,c){var ph=normPhone(r.phone);var f=fu[r.id];var last=f?f[f.length-1]:null;var iv=inv[r.id];
+    var info=last?"Followed up by "+teamName(last.by).split(" ")[0]+" · "+ago(last.at):(iv?"Invited by "+iv.map(function(x){return teamName(x.by).split(" ")[0];}).filter(function(v,i,a){return a.indexOf(v)===i;}).join(", "):(c?"Walked in":""));
+    if(canSeeTies()){var ct=ties(r.id)[0];if(ct)info+=(info?" · ":"")+"Closest: "+teamName(ct.tid).split(" ")[0];}
+    return '<div class="checkrow" style="cursor:default">'+avatarHTML(r)+'<span class="main" style="flex:1;min-width:0"><b style="display:block">'+esc(r.name)+(last?' <span class="sc good">Followed up</span>':'')+(mine(r.id)&&!last?' <span class="sc warn">Your invite</span>':'')+'</b><small class="muted">'+esc(info)+'</small></span>'+
+      (readOnly?'':ph?'<button class="btn sm '+(last?"ghost":"primary")+'" data-a="ev-follow" data-id="'+esc(r.id)+'" data-came="'+(c?1:0)+'">'+(last?"Again":"Follow up")+'</button>':'<span class="tag">No number</span>')+'</div>';};
+  return '<p class="small muted" style="margin:0">Text guys while the event is fresh. Your invites are at the top; anyone already followed up is marked.</p>'+
+    '<h3>Came <span class="num">'+came.length+'</span></h3>'+(came.length?'<div class="list">'+came.map(function(r){return row(r,true);}).join("")+'</div>':'<div class="empty">No one was checked in.</div>')+
+    '<h3 style="margin-top:6px">Invited, didn’t come <span class="num">'+missed.length+'</span></h3>'+(missed.length?'<div class="list">'+missed.map(function(r){return row(r,false);}).join("")+'</div>':'<div class="empty">Everyone invited showed up.</div>');
+}
 function vCheckin(e){
   var tdy=today();
-  var h='<div class="spread"><button class="btn sm ghost" data-a="close-ev">← Events</button><div class="row" style="gap:6px">'+(readOnly?'':'<button class="btn sm primary" data-a="door-open">Door mode</button>')+(isCoord()?'<button class="btn sm ghost" data-a="edit-ev" data-id="'+esc(e.id)+'">Edit event</button>':"")+'</div></div>'+
+  var h='<div class="spread"><button class="btn sm ghost" data-a="close-ev">← Events</button><div class="row" style="gap:6px"><button class="btn sm" data-a="ev-graphic">Make graphic</button>'+(readOnly?'':'<button class="btn sm primary" data-a="door-open">Door mode</button>')+(isCoord()?'<button class="btn sm ghost" data-a="edit-ev" data-id="'+esc(e.id)+'">Edit event</button>':"")+'</div></div>'+
     '<div><h2>'+esc(e.name)+'</h2><div class="muted small">'+esc(fmtDate(e.date))+(e.time?" · "+esc(fmtTime(e.time)):"")+(e.place?" · "+esc(e.place):"")+'</div></div>';
   if(!myTeam()&&!readOnly)h+='<div class="banner">Pick your name on My rush so check-ins are credited to you.</div>';
   var invCount={};arr(S.reachouts).forEach(function(x){if(x.kind==="invite"&&x.eventId===e.id)invCount[x.rusheeId]=1;});
-  h+='<span class="seg"><button data-a="evtab" data-v="checkin" aria-pressed="'+(ui.evtab!=="invites")+'">Check-in ('+checkinsFor(e.id).length+')</button><button data-a="evtab" data-v="invites" aria-pressed="'+(ui.evtab==="invites")+'">Invites ('+Object.keys(invCount).length+')</button></span>';
+  var past=e.date&&e.date<=tdy;
+  h+='<span class="seg"><button data-a="evtab" data-v="checkin" aria-pressed="'+(ui.evtab!=="invites"&&ui.evtab!=="followup")+'">Check-in ('+checkinsFor(e.id).length+')</button><button data-a="evtab" data-v="invites" aria-pressed="'+(ui.evtab==="invites")+'">Invites ('+Object.keys(invCount).length+')</button>'+(past?'<button data-a="evtab" data-v="followup" aria-pressed="'+(ui.evtab==="followup")+'">Follow up</button>':'')+'</span>';
+  if(ui.evtab==="followup"&&past){h+='<div class="section">'+followupHTML(e)+'</div>';return h;}
   h+='<input type="search" id="evsearch" placeholder="'+(ui.evtab==="invites"?"Search a name to invite him…":"Search a name to check him in…")+'" value="'+esc(ui.evq)+'" aria-label="Search rushees" autocomplete="off">';
   if(ui.evtab==="invites"){h+='<div id="evlist" class="section">'+inviteListHTML(e)+'</div>';return h;}
   if(!readOnly)h+='<form class="card" data-form="walkin"><h3>Walk-in not on the list?</h3><div class="fields"><div class="field"><label for="wi-name">Name</label><input type="text" id="wi-name" name="name" required></div><div class="field"><label for="wi-phone">Phone</label><input type="tel" id="wi-phone" name="phone"></div><div class="field"><label for="wi-year">Year</label><select id="wi-year" name="year"><option>Freshman (Class of 2030)</option><option>Sophomore (Class of 2029)</option><option>Junior (Class of 2028)</option><option>Senior</option></select></div></div><div class="row"><button class="btn primary" type="submit">Add and check in</button></div></form>';
@@ -1014,7 +1141,7 @@ function vPlan(){
   if(p.rows.length){
     h+='<div class="tablewrap"><table class="plantable"><thead><tr><th>Include</th><th>Rushee</th><th>Last lunch</th><th>Brother</th></tr></thead><tbody>'+p.rows.map(function(row,i){
       var r=S.rushees.get(row.rid);if(!r)return "";var ll=lastLunch(r.id);
-      return '<tr><td><input type="checkbox" data-change="plan-on" data-i="'+i+'"'+(row.on?" checked":"")+' style="accent-color:var(--purple);width:18px;height:18px" aria-label="Include '+esc(r.name)+'"></td><td><b>'+esc(r.name)+'</b><br>'+pill(r.stage)+'</td><td class="small muted">'+(ll?esc(fmtDate(ll.date))+" with "+esc((ll.teamIds||[]).map(function(t){return teamName(t).split(" ")[0];}).join(", ")):"Never")+'</td><td><select data-change="plan-bro" data-i="'+i+'" aria-label="Brother for '+esc(r.name)+'"><option value="">Pick a brother</option>'+bros.map(function(t){return '<option value="'+esc(t.id)+'"'+(row.tid===t.id?" selected":"")+'>'+esc(t.name)+'</option>';}).join("")+'</select>'+(matchWhy(S.team.get(row.tid),r)?'<div class="small" style="color:var(--good)">Both '+esc(matchWhy(S.team.get(row.tid),r).replace(/^both /,""))+'</div>':'')+'</td></tr>';
+      return '<tr><td><input type="checkbox" data-change="plan-on" data-i="'+i+'"'+(row.on?" checked":"")+' style="accent-color:var(--purple);width:18px;height:18px" aria-label="Include '+esc(r.name)+'"></td><td><b>'+esc(r.name)+'</b><br>'+pill(r.stage)+(function(){var ct3=ties(r.id)[0];return ct3?'<div class="small muted">Closest: '+esc(teamName(ct3.tid).split(" ")[0])+'</div>':'';})()+'</td><td class="small muted">'+(ll?esc(fmtDate(ll.date))+" with "+esc((ll.teamIds||[]).map(function(t){return teamName(t).split(" ")[0];}).join(", ")):"Never")+'</td><td><select data-change="plan-bro" data-i="'+i+'" aria-label="Brother for '+esc(r.name)+'"><option value="">Pick a brother</option>'+bros.map(function(t){return '<option value="'+esc(t.id)+'"'+(row.tid===t.id?" selected":"")+'>'+esc(t.name)+'</option>';}).join("")+'</select>'+(matchWhy(S.team.get(row.tid),r)?'<div class="small" style="color:var(--good)">Both '+esc(matchWhy(S.team.get(row.tid),r).replace(/^both /,""))+'</div>':'')+'</td></tr>';
     }).join("")+'</tbody></table></div>';
   } else h+='<div class="empty">Every active rushee already has an open assignment.</div>';
   if(p.progress!=null)h+='<div class="progress"><i style="width:'+Math.round(p.progress*100)+'%"></i></div>';
@@ -1249,12 +1376,13 @@ function drawerHTML(){
   var extra=r.extra||{};Object.keys(extra).forEach(function(k){if(extra[k])kv.push([k,extra[k]]);});
   var h='<div class="scrim" data-a="close-drawer"><aside class="drawer" data-stop="1" aria-label="Rushee profile">'+
     '<div class="spread"><button class="btn sm ghost" data-a="close-drawer">← Back</button>'+(coord?'<div class="row"><button class="btn sm" data-a="edit-r" data-id="'+esc(r.id)+'">Edit</button></div>':"")+'</div>'+
-    '<div class="row">'+avatarHTML(r,true)+'<div style="min-width:0"><h2 style="font-size:24px">'+esc(r.name)+'</h2><div class="row" style="gap:8px;margin-top:4px">'+pill(r.stage)+(avg!=null?'<span class="small muted">Team fit '+stars(avg)+' <span class="num">'+avg.toFixed(1)+'</span></span>':"")+'</div></div></div>';
+    '<div class="row">'+(r.photoData?'<button class="photo-btn" data-a="photo-view" data-id="'+esc(r.id)+'" aria-label="See '+esc(r.name)+'’s photo larger">'+avatarHTML(r,true)+'</button>':avatarHTML(r,true))+'<div style="min-width:0"><h2 style="font-size:24px">'+esc(r.name)+'</h2><div class="row" style="gap:8px;margin-top:4px">'+pill(r.stage)+(avg!=null?'<span class="small muted">Team fit '+stars(avg)+' <span class="num">'+avg.toFixed(1)+'</span></span>':"")+'</div></div></div>';
   if(coord){
     h+='<div class="fields"><div class="field"><label for="d-stage">Stage</label><select id="d-stage" data-change="stage" data-id="'+esc(r.id)+'">'+STAGES.map(function(s){return '<option value="'+s[0]+'"'+((r.stage||"new")===s[0]?" selected":"")+'>'+s[1]+'</option>';}).join("")+'</select></div>'+
        '<div class="field"><label for="d-point">Point brother</label><select id="d-point" data-change="point" data-id="'+esc(r.id)+'"><option value="">None</option>'+arr(S.team).sort(byName).map(function(t){return '<option value="'+esc(t.id)+'"'+(r.pointId===t.id?" selected":"")+'>'+esc(t.name)+'</option>';}).join("")+'</select></div></div>';
   } else if(r.pointId){h+='<div class="small muted">Point brother: <b style="color:var(--text)">'+esc(teamName(r.pointId))+'</b></div>';}
   var tools='';
+  if(!readOnly&&normPhone(r.phone))tools+='<button class="btn sm" data-a="save-contact" data-id="'+esc(r.id)+'">Save to contacts</button>';
   if(!readOnly)tools+='<label class="btn sm" style="cursor:pointer">'+(r.photoData?"Change photo":"Add photo")+'<input type="file" accept="image/*" data-change="photo" data-id="'+esc(r.id)+'" hidden></label>';
   if(sampleApi)tools+='<button class="btn sm primary" data-a="brief" data-id="'+esc(r.id)+'">✦ Brief me on him</button>';
   if(tools)h+='<div class="row">'+tools+'</div>';
@@ -1272,7 +1400,9 @@ function drawerHTML(){
   h+='<section class="section"><h3>Tags</h3><div class="chips">'+(r.tags||[]).map(function(t){return '<span class="chip tagc">#'+esc(t)+(canTag?'<button data-a="tag-del" data-id="'+esc(r.id)+'" data-v="'+esc(t)+'" aria-label="Remove tag '+esc(t)+'">×</button>':'<span style="width:6px"></span>')+'</span>';}).join("")+
     ((r.tags||[]).length?"":'<span class="small muted">No tags yet.</span>')+'</div>'+
     (canTag?'<form class="inline-add" data-form="tag" data-id="'+esc(r.id)+'"><input type="text" name="tag" list="taglist" placeholder="Add a tag, e.g. 2nd floor Penland" aria-label="Add tag" maxlength="40"><button class="btn sm" type="submit">Add</button></form><datalist id="taglist">'+allTags().map(function(x){return '<option value="'+esc(x[0])+'">';}).join("")+'</datalist>':"")+'</section>';
+  h+=tiesSection(r);
   var fr=(r.friends||[]).map(function(id){return S.rushees.get(id);}).filter(Boolean);
+  h+=iKnowRow(r);
   h+='<section class="section"><h3>Rushing with / friends</h3><div class="chips">'+fr.map(function(f){return '<span class="chip link" role="button" tabindex="0" data-a="open-r" data-id="'+esc(f.id)+'">'+esc(f.name)+(canTag?'<button data-a="friend-del" data-id="'+esc(r.id)+'" data-v="'+esc(f.id)+'" aria-label="Remove connection">×</button>':'')+'</span>';}).join("")+
     (fr.length?"":'<span class="small muted">No connections yet.</span>')+'</div>'+
     (canTag?'<form class="inline-add" data-form="friend" data-id="'+esc(r.id)+'"><input type="text" name="friend" list="rlistnames" placeholder="Type a rushee\'s name" aria-label="Add connection"><button class="btn sm" type="submit">Link</button></form><datalist id="rlistnames">'+arr(S.rushees).filter(function(x){return x.id!==r.id;}).sort(byName).map(function(x){return '<option value="'+esc(x.name)+'">';}).join("")+'</datalist>':"")+'</section>';
@@ -1292,7 +1422,9 @@ function drawerHTML(){
 
 /* Modals */
 function modalHTML(){
-  var m=ui.modal;var h='<div class="modalwrap" data-a="close-modal"><div class="modal" data-stop="1" role="dialog" aria-modal="true">';
+  var m=ui.modal;
+  if(m.type==="photo"){var pr=S.rushees.get(m.id)||{};
+    return '<div class="lightbox" data-a="close-modal" role="dialog" aria-modal="true" aria-label="'+esc(pr.name||"Photo")+'"><img src="'+esc(pr.photoData||"")+'" alt="'+esc(pr.name||"")+'"><div class="lb-cap">'+esc(pr.name||"")+'<span>Tap anywhere to close</span></div></div>';}var h='<div class="modalwrap" data-a="close-modal"><div class="modal" data-stop="1" role="dialog" aria-modal="true">';
   if(m.type==="rushee"){
     var r=m.id?S.rushees.get(m.id)||{}:{};
     h+='<form class="section" data-form="rushee"><div class="spread"><h2>'+(m.id?"Edit rushee":"Add rushee")+'</h2><button type="button" class="btn sm ghost" data-a="close-modal">Cancel</button></div><div class="fields">'+
@@ -1329,7 +1461,8 @@ function modalHTML(){
       RTEMPLATES.map(function(tp,v){var msg=rusheeMsg(Lr,m.p,v);var ex=rr?extText(rr.phone,msg,rf):"";
         return '<div class="card" style="gap:8px"><b>'+esc(tp.label)+'</b><div class="small" style="white-space:pre-wrap">'+esc(msg)+'</div><div class="row">'+
           (ex?'<a class="btn sm primary" href="'+esc(ex)+'" target="_blank" rel="noopener noreferrer" data-a="rtext-sent" data-id="'+esc(Lr.id)+'" data-r="'+esc(m.p)+'">Text this one</a>':'')+
-          '<button class="btn sm'+(ex?' ghost':' primary')+'" data-a="rtext-copy" data-id="'+esc(Lr.id)+'" data-r="'+esc(m.p)+'" data-v="'+esc((rr&&rr.phone?rr.phone+"\n":"")+msg)+'">Copy</button></div></div>';}).join("")+'</div>';
+          '<button class="btn sm'+(ex?' ghost':' primary')+'" data-a="rtext-copy" data-id="'+esc(Lr.id)+'" data-r="'+esc(m.p)+'" data-v="'+esc((rr&&rr.phone?rr.phone+"\n":"")+msg)+'">Copy</button></div></div>';}).join("")+
+      (rr&&normPhone(rr.phone)?'<div class="row" style="justify-content:space-between;align-items:center"><span class="small muted">Save him so his texts show up as “'+esc(rr.name)+' · PNM.”</span><button class="btn sm" data-a="save-contact" data-id="'+esc(rr.id)+'">Save to contacts</button></div>':'')+'</div>';
   } else if(m.type==="sms"){
     var Ls=S.lunches.get(m.l)||m.lunch||{id:m.l};var person,msg,phone;
     if(m.k==="bro"){person=S.team.get(m.p);msg=person?lunchMsg(Ls,m.p):"";}else{person=S.rushees.get(m.p);msg=person?rusheeMsg(Ls,m.p):"";}
@@ -1399,6 +1532,22 @@ function modalHTML(){
       '<div class="card small" style="white-space:pre-wrap">'+esc(m.msg)+'</div><div class="row">'+
       (gx?'<a class="btn primary" href="'+esc(gx)+'" target="_blank" rel="noopener noreferrer">Group text '+esc(cs.map(function(c){return c.name.split(" ")[0];}).join(" & "))+'</a>':'')+
       '<button class="btn'+(gx?' ghost':' primary')+'" data-a="copy-raw" data-v="'+esc(cs.map(function(c){return c.phone;}).filter(Boolean).join(", ")+"\n"+m.msg)+'">Copy</button></div></div>';
+  } else if(m.type==="evfollow"){
+    var E2=S.events.get(m.e)||{};var R2=S.rushees.get(m.r);var fmsg=R2?followMsg(E2,m.r,m.came):"";var fx=R2?extText(R2.phone,fmsg,R2.name.split(" ")[0]):"";
+    h+='<div class="section"><div class="spread"><h2>Follow up with '+esc(R2?R2.name.split(" ")[0]:"")+'</h2><button type="button" class="btn sm ghost" data-a="close-modal">Cancel</button></div>'+
+      (R2&&R2.avoid?'<div class="avoid"><b>⚠ Avoid:</b> '+esc(R2.avoid)+'</div>':'')+
+      '<div class="card small" style="white-space:pre-wrap">'+esc(fmsg)+'</div><div class="row">'+
+      (fx?'<a class="btn primary" href="'+esc(fx)+'" data-a="ev-follow-sent" data-id="'+esc(m.r)+'">Text '+esc(R2.name.split(" ")[0])+'</a>':'')+
+      '<button class="btn'+(fx?' ghost':' primary')+'" data-a="copy-raw" data-v="'+esc((R2&&R2.phone?R2.phone+"\n":"")+fmsg)+'">Copy</button></div>'+
+      '<p class="small muted" style="margin:0">Sending marks him as followed up by you.</p></div>';
+  } else if(m.type==="evgraphic"){
+    var EG=S.events.get(m.e)||{};
+    h+='<div class="section"><div class="spread"><h2>Event graphic</h2><button type="button" class="btn sm ghost" data-a="close-modal">Done</button></div>'+
+      '<div class="row" style="gap:6px">'+[["plum","Plum"],["light","Light"],["gold","Gold"]].map(function(x){return '<button class="btn sm'+(ui.gfx.t===x[0]?" primary":"")+'" data-a="gfx-t" data-v="'+x[0]+'">'+x[1]+'</button>';}).join("")+
+      '<span style="width:10px"></span>'+[["story","Story"],["square","Square"]].map(function(x){return '<button class="btn sm'+(ui.gfx.s===x[0]?" primary":"")+'" data-a="gfx-s" data-v="'+x[0]+'">'+x[1]+'</button>';}).join("")+'</div>'+
+      '<div class="gfx-wrap"><img id="gfx-img" alt="'+esc(EG.name||"Event")+' graphic" src="'+esc(ui.gfx.url||"")+'"></div>'+
+      '<div class="row"><button class="btn primary" data-a="gfx-share">Share</button><button class="btn" data-a="gfx-save">Save image</button></div>'+
+      '<p class="small muted" style="margin:0">Share sends it to Messages, Instagram or Photos. On a computer, Save image downloads it.</p></div>';
   } else if(m.type==="evinvite"){
     var E=S.events.get(m.e)||{};var R=S.rushees.get(m.r);var imsg=R?inviteMsg(E,m.r):"";var ix=R?extText(R.phone,imsg,R.name.split(" ")[0]):"";
     h+='<div class="section"><div class="spread"><h2>Invite '+esc(R?R.name.split(" ")[0]:"")+'</h2><button type="button" class="btn sm ghost" data-a="close-modal">Cancel</button></div>'+
@@ -1547,6 +1696,18 @@ document.addEventListener("click",function(e){
     case "verify-check":(function(){var u=firebase.auth().currentUser;if(!u)return;u.reload().then(function(){if(firebase.auth().currentUser.emailVerified)return u.getIdToken(true).then(function(){location.reload();});authUI.err="Not confirmed yet. Tap the link in the email first.";render();});})();break;
     case "sfilter":ui.sfilter=el.dataset.v;render();break;
     case "evtab":ui.evtab=el.dataset.v;ui.evq="";render();break;
+    case "ev-follow":ui.modal={type:"evfollow",e:ui.ev,r:id,came:el.dataset.came==="1"};render();break;
+    case "ev-follow-sent":logReach(id,"followup",{eventId:ui.modal&&ui.modal.e});setTimeout(function(){if(ui.modal&&ui.modal.type==="evfollow"){ui.modal=null;render();}},300);break;
+    case "know-add":(function(){var t=myTeam();if(!t)return;setDoc("knows/"+id+"__"+t.id,{rusheeId:id,teamId:t.id,uid:me.id,at:Date.now()}).then(function(){toast("Got it. Only coordinators see this.");});})();break;
+    case "know-del":delDoc("knows/"+id+"__"+el.dataset.v).then(function(){toast("Removed");});break;
+    case "save-contact":saveContacts([id]);break;
+    case "save-contacts-mine":(function(){var t=myTeam();if(!t)return;var ids={};arr(S.lunches).forEach(function(l){if((l.teamIds||[]).indexOf(t.id)>=0&&l.status!=="cancelled")(l.rusheeIds||[]).forEach(function(r){ids[r]=1;});});saveContacts(Object.keys(ids));})();break;
+    case "photo-view":ui.modal={type:"photo",id:id};render();break;
+    case "ev-graphic":ui.gfx={e:ui.ev,t:(ui.gfx&&ui.gfx.t)||"plum",s:(ui.gfx&&ui.gfx.s)||"story"};ui.modal={type:"evgraphic",e:ui.ev};render();renderGfx();break;
+    case "gfx-t":ui.gfx.t=el.dataset.v;ui.gfx.url="";render();renderGfx();break;
+    case "gfx-s":ui.gfx.s=el.dataset.v;ui.gfx.url="";render();renderGfx();break;
+    case "gfx-share":if(!ui.gfx||!ui.gfx.canvas){toast("One sec, still drawing…");break;}gfxFile().then(function(f){if(navigator.canShare&&navigator.canShare({files:[f]}))return navigator.share({files:[f]}).catch(function(){});var u=URL.createObjectURL(f);var a=document.createElement("a");a.href=u;a.download=f.name;document.body.appendChild(a);a.click();setTimeout(function(){a.remove();URL.revokeObjectURL(u);},3000);toast("Image saved");});break;
+    case "gfx-save":if(!ui.gfx||!ui.gfx.canvas){toast("One sec, still drawing…");break;}gfxFile().then(function(f){var u=URL.createObjectURL(f);var a=document.createElement("a");a.href=u;a.download=f.name;document.body.appendChild(a);a.click();setTimeout(function(){a.remove();URL.revokeObjectURL(u);},3000);toast("On iPhone, use Share → Save Image");});break;
     case "replied":(function(){var lid=el.dataset.l;updDoc("rushees/"+id,{lastReplyAt:Date.now()}).then(function(){toast("Marked as replied");if(lid)updDoc("lunches/"+lid,{replied:true}).catch(function(){});});})();break;
     case "sub-lunch":ui.modal={type:"sublunch"};render();focusFirst();break;
     case "sub-pnm":ui.modal={type:"subpnm"};render();focusFirst();break;
@@ -1651,6 +1812,9 @@ document.addEventListener("submit",function(e){
   } else if(kind==="season"){
     if(String(fd.get("ok")||"").trim().toUpperCase()!=="END"){toast("Type END to confirm");done();return;}
     var sb=e.target.querySelector('button[type="submit"]');archiveSeason(sb||{},String(fd.get("next")||"").trim());
+  } else if(kind==="know"){
+    var ktid=fd.get("tid");if(!ktid){toast("Pick a brother");done();return;}var ktm=S.team.get(ktid)||{};
+    setDoc("knows/"+f.dataset.id+"__"+ktid,{rusheeId:f.dataset.id,teamId:ktid,uid:ktm.uid||null,at:Date.now(),addedBy:t?t.id:""}).then(function(){toast(String(ktm.name||"").split(" ")[0]+" marked as knowing him");},done);
   } else if(kind==="viewer"){
     var ve=String(fd.get("email")||"").trim().toLowerCase(),vn=String(fd.get("name")||"").trim(),vt=String(fd.get("title")||"").trim();
     if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(ve)){toast("That email doesn't look right");done();return;}
@@ -1832,9 +1996,9 @@ function uploadPhoto(rid,file){
     updDoc("rushees/"+rid,{photoData:dataUrl,photo:null}).then(function(){toast("Photo saved");},function(){});
   };
   var img=new Image();var url=URL.createObjectURL(file);
-  img.onload=function(){var max=400,w=img.naturalWidth,h=img.naturalHeight,sc=Math.min(1,max/Math.max(w,h));
+  img.onload=function(){var max=900,w=img.naturalWidth,h=img.naturalHeight,sc=Math.min(1,max/Math.max(w,h));
     var c=document.createElement("canvas");c.width=Math.round(w*sc);c.height=Math.round(h*sc);c.getContext("2d").drawImage(img,0,0,c.width,c.height);URL.revokeObjectURL(url);
-    var d=c.toDataURL("image/jpeg",0.8);if(d.length>700000)d=c.toDataURL("image/jpeg",0.5);finish(d);};
+    var d=c.toDataURL("image/jpeg",0.8);if(d.length>650000)d=c.toDataURL("image/jpeg",0.6);if(d.length>650000)d=c.toDataURL("image/jpeg",0.4);finish(d);};
   img.onerror=function(){URL.revokeObjectURL(url);toast("Couldn't read that photo. Try a JPG or PNG.");};
   img.src=url;
 }
@@ -1909,7 +2073,7 @@ function boot(){
   var owners=(window.BYX_OWNERS||[]).map(function(x){return String(x).toLowerCase();});
   firebase.auth().onAuthStateChanged(function(u){
     unsubs.forEach(function(f){try{f();}catch(e){}});unsubs=[];db=null;readOnly=false;
-    ["rushees","team","lunches","notes","events","checkins","reachouts","submissions"].forEach(function(n){S[n]=new Map();S.loaded[n]=false;});
+    ["rushees","team","lunches","notes","events","checkins","reachouts","submissions"].forEach(function(n){S[n]=new Map();S.loaded[n]=false;});S.knows=new Map();
     if(!u){me={};status="signin";render();return;}
     if(!u.emailVerified){me={id:u.uid,email:String(u.email||"").toLowerCase()};status="verify";render();return;}
     me={id:u.uid,email:String(u.email||"").toLowerCase(),isOwner:false,canWrite:true,viewer:false,role:"",preview:null,real:null};S.viewers=null;S.viewersLoaded=false;
@@ -1932,6 +2096,8 @@ function boot(){
           scheduleRender();
         },fail));
       });
+      var kq=(me.isOwner||me.role==="coordinator")?fs.collection("knows"):(me.role==="member"?fs.collection("knows").where("uid","==",me.id):null);
+      if(kq)unsubs.push(kq.onSnapshot(function(snap){var m=new Map();snap.docs.forEach(function(d){m.set(d.id,Object.assign({},d.data(),{id:d.id}));});S.knows=m;scheduleRender();},function(){S.knows=new Map();}));
       unsubs.push(fs.doc("config/main").onSnapshot(function(s){if(s.exists)S.config=Object.assign({},S.config,s.data());scheduleRender();},fail));
     },fail);
   });
