@@ -78,7 +78,7 @@ progress{width:100%;height:14px;accent-color:var(--purple)}
   var auth=firebase.auth(),fs=firebase.firestore();
   var owners=(window.BYX_OWNERS||[]).map(function(x){return String(x).toLowerCase();});
   var data=null,user=null,existingTeam={};
-  var NAMES=["rushees","team","lunches","notes","events","checkins","reachouts","submissions"];
+  var NAMES=["rushees","team","lunches","notes","events","checkins","reachouts","submissions","rounds","sends","cards","addresses"];
 
   $("b-signin").onclick=function(){var p=new firebase.auth.GoogleAuthProvider();p.setCustomParameters({prompt:"select_account"});auth.signInWithPopup(p).catch(function(e){$("auth-err").textContent=e.message;});};
   $("b-signout").onclick=function(){auth.signOut();};

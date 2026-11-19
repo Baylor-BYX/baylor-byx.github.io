@@ -246,6 +246,9 @@ input[type=text],input[type=tel],input[type=date],input[type=time],input[type=se
   width:100%;background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:9px 11px;font-size:15px}
 input:focus,select:focus,textarea:focus{border-color:var(--accent);outline:none;box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 20%,transparent)}
 textarea{min-height:84px;resize:vertical}
+a.item{text-decoration:none;color:inherit}
+.dnd-hint{display:none;align-self:center}@media (hover:hover) and (pointer:fine){.dnd-hint{display:inline}}
+.drawer.dragover{outline:3px dashed var(--purple);outline-offset:-10px}
 textarea.msgedit{min-height:96px;font-size:15px;line-height:1.4;background:var(--panel);color:var(--ink,inherit)}
 .fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
 .checks{display:flex;flex-direction:column;max-height:220px;overflow:auto;border:1px solid var(--line);border-radius:9px;background:var(--panel)}
@@ -328,7 +331,7 @@ var HEADER_GUESS={
   interests:["interests","hobbies","notes","about","comments"]
 };
 
-var S={knows:new Map(),rushees:new Map(),team:new Map(),lunches:new Map(),notes:new Map(),events:new Map(),checkins:new Map(),reachouts:new Map(),submissions:new Map(),config:{season:"Spring 2027 Rush",chapter:"Iota Chapter"},loaded:{}};
+var S={rounds:new Map(),sends:new Map(),cards:new Map(),addresses:new Map(),knows:new Map(),rushees:new Map(),team:new Map(),lunches:new Map(),notes:new Map(),events:new Map(),checkins:new Map(),reachouts:new Map(),submissions:new Map(),config:{season:"Spring 2027 Rush",chapter:"Iota Chapter"},loaded:{}};
 var db=null,user=null,assetsApi=null,sampleApi=null,dictApi=null,dlApi=null,micFor=null,micState="idle";
 var me={id:null,isOwner:false,canWrite:null};
 var status="connecting", readOnly=false;
@@ -482,7 +485,7 @@ var ICONS={
   team:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3l8 4v5c0 4.5-3.4 8-8 9-4.6-1-8-4.5-8-9V7z"/></svg>'
 };
 var TABS=[["me","My rush"],["board","Board"],["calendar","Calendar"],["events","Events"],["rushees","Rushees"],["team","Team"]];
-var TAB_OF={lunches:"calendar",plan:"board",import:"rushees",status:"rushees",report:"board"};
+var TAB_OF={cards:"me","cards-print":"me",lunches:"calendar",plan:"board",import:"rushees",status:"rushees",report:"board"};
 
 function render(){
   var app=document.getElementById("app");
@@ -692,6 +695,9 @@ function view(){
   if(status==="noaccess")return noaccessHTML();
   if(me.viewer&&(ui.route==="me"||ui.route==="plan"||ui.route==="import"))ui.route="board";
   if(isBrother()&&(ui.route==="board"||ui.route==="plan"||ui.route==="import"||ui.route==="report"))ui.route="me";
+  if(ui.route.indexOf("round:")===0){if(isBrother())ui.route="me";else return vRound(ui.route.slice(6));}
+  if(ui.route==="cards")return vCards();
+  if(ui.route==="cards-print")return vCardsPrint();
   switch(ui.route){case "report":return vReport();case "status":return vStatus();case "events":return vEvents();case "plan":return vPlan();case "calendar":return vCalendar();case "board":return vBoard();case "rushees":return vRushees();case "lunches":return vLunches();case "team":return vTeam();case "import":return vImport();default:return vMe();}
 }
 function pill(stage){var s=STAGE[stage]||STAGE["new"];return '<span class="pill" style="color:'+s.f+';background:'+s.c+'">'+s.l+'</span>';}
@@ -793,8 +799,154 @@ function noteForm(id,rid,lunchId,label){
     '<div class="row"><button class="btn primary" type="submit">Save note</button>'+(dictApi?'<button type="button" class="btn ghost mic" data-a="mic" data-for="'+id+'">🎙 Talk</button>':'')+'</div></form>';
 }
 
+
+/* ===== Break mode (calls + holiday texts) and Christmas card mode ===== */
+function breakOn(){return !!S.config.breakMode;}
+function cardsOn(){return !!S.config.cardMode;}
+var TEXT_PRESETS=[
+  ["thanksgiving","Happy Thanksgiving","Hey {first}! Happy Thanksgiving from all of us at BYX. Hope you get some good rest and time with your family!"],
+  ["christmas","Merry Christmas","Merry Christmas {first}! Hope you're having a great break with your family. We're excited to see you back in the spring!"],
+  ["newyear","Happy New Year","Happy New Year {first}! Hope {year} is off to a great start. Can't wait to see you back on campus."],
+  ["schedule","Rush schedule","Hey {first}! Spring rush is almost here. Here's what's coming up:\n{events}\nLet me know if you have any questions!"],
+  ["custom","","Hey {first}! "]
+];
+var CALL_TEXT="Hey {first}! Tried to give you a call to see how break is going. Hope you're doing well, let me know if you want to catch up!";
+function upcomingEventsText(){
+  var ev=arr(S.events).filter(function(e){return e.date&&e.date>=today();}).sort(function(a,b){return (a.date+(a.time||"")).localeCompare(b.date+(b.time||""));}).slice(0,8);
+  return ev.map(function(e){var p=e.date.split("-");var d=new Date(+p[0],+p[1]-1,+p[2]).toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric"});
+    return "• "+d+" · "+e.name+(e.time?" · "+shortTime(e.time):"")+(e.place?" · "+e.place:"");}).join("\n")||"(events coming soon)";}
+function fillMsg(tpl,rid,tid){var r=S.rushees.get(rid);var t=S.team.get(tid)||myTeam();var d=new Date();var yr=String(d.getMonth()>=10?d.getFullYear()+1:d.getFullYear());
+  return String(tpl||"").replace(/\{first\}/g,r?r.name.split(" ")[0]:"").replace(/\{me\}/g,t?t.name.split(" ")[0]:"").replace(/\{year\}/g,yr).replace(/\{events\}/g,function(){return upcomingEventsText();});}
+function roundActive(r){if(r.closed)return false;if(r.kind==="call")return r.week===weekOf(today());return Date.now()-(r.startAt||r.createdAt||0)<7*86400000;}
+function thanksgivingMonday(y){var d=new Date(y,10,1);var off=(4-d.getDay()+7)%7;return iso(new Date(y,10,1+off+21-3));}
+function ensureHolidayRounds(){
+  if(!db||!breakOn()||!isCoord()||!S.loaded.rounds)return;var td=today();var y=+td.slice(0,4);var done=S.config.autoDone||{};
+  var specs=[];[y-1,y].forEach(function(Y){specs.push(["thanksgiving-"+Y,"thanksgiving",thanksgivingMonday(Y)],["christmas-"+Y,"christmas",Y+"-12-23"],["newyear-"+(Y+1),"newyear",Y+"-12-31"]);});
+  var nd=Object.assign({},done),jobs=[];
+  specs.forEach(function(sp){var id="auto-"+sp[0];ui.autoMade=ui.autoMade||{};if(S.rounds.has(id)||done[id]||ui.autoMade[id])return;if(td<sp[2]||td>addDays(sp[2],6))return;
+    var pr=TEXT_PRESETS.find(function(x){return x[0]===sp[1];});ui.autoMade[id]=1;nd[id]=true;
+    jobs.push(setDoc("rounds/"+id,{name:pr[1],kind:"text",msg:pr[2],assign:{},startAt:dms(sp[2]),auto:true,createdAt:Date.now(),createdBy:"auto",closed:false}));});
+  if(jobs.length)Promise.all(jobs).then(function(){return db.doc("config/main").update({autoDone:nd});}).catch(function(){});}
+function roundsOpen(kind){return arr(S.rounds).filter(function(r){return roundActive(r)&&(!kind||r.kind===kind);}).sort(function(a,b){return (b.createdAt||0)-(a.createdAt||0);});}
+function curCallRound(){var wk=weekOf(today());return arr(S.rounds).find(function(r){return r.kind==="call"&&!r.closed&&r.week===wk;})||null;}
+function roundGuys(){return arr(S.rushees).filter(ACTIVE).sort(byName);}
+function sendOf(rd,rid){return S.sends.get(rd.id+"__"+rid)||null;}
+function whoOf(rd,rid){var t=(rd.assign||{})[rid];return t&&S.team.get(t)?t:"";}
+var OUTCOME={talked:"Talked",voicemail:"Left a voicemail",texted:"Texted",sent:"Sent"};
+function roundStats(rd){var g=roundGuys();var done=0,un=0;g.forEach(function(r){if(sendOf(rd,r.id))done++;if(!whoOf(rd,r.id))un++;});return {total:g.length,done:done,unassigned:un};}
+function autoPick(rd,rid,load){
+  var prev=arr(S.rounds).filter(function(x){return x.id!==rd.id&&(x.assign||{})[rid]&&S.team.get(x.assign[rid]);}).sort(function(a,b){return (a.kind===rd.kind?0:1)-(b.kind===rd.kind?0:1)||(b.createdAt||0)-(a.createdAt||0);})[0];
+  if(prev)return prev.assign[rid];
+  var tz=ties(rid);if(tz.length&&S.team.get(tz[0].tid))return tz[0].tid;
+  var ll=lastLunch(rid);if(ll&&(ll.teamIds||[])[0]&&S.team.get(ll.teamIds[0]))return ll.teamIds[0];
+  var bros=arr(S.team).filter(function(t){return t.role==="member"||t.role==="coordinator";});if(!bros.length)return "";
+  bros.sort(function(a,b){return (load[a.id]||0)-(load[b.id]||0)||String(a.name).localeCompare(b.name);});return bros[0].id;}
+function autoAssign(rd){var a=Object.assign({},rd.assign||{});var load={};Object.keys(a).forEach(function(k){load[a[k]]=(load[a[k]]||0)+1;});var n=0;
+  roundGuys().forEach(function(r){if(a[r.id]&&S.team.get(a[r.id]))return;var p=autoPick(rd,r.id,load);if(p){a[r.id]=p;load[p]=(load[p]||0)+1;n++;}});
+  return updDoc("rounds/"+rd.id,{assign:a}).then(function(){toast(n?"Assigned "+n+" guy"+(n===1?"":"s"):"Everyone already has a brother");});}
+function markSend(rd,rid,outcome){var t=myTeam();if(!t||!rd)return Promise.resolve();if(sendOf(rd,rid))return Promise.resolve();
+  logReach(rid,rd.kind==="call"&&outcome!=="texted"?"call":"text",{roundId:rd.id});
+  return setDoc("sends/"+rd.id+"__"+rid,{roundId:rd.id,rusheeId:rid,by:t.id,uid:me.id||null,at:Date.now(),outcome:outcome});}
+function telHref(p){var n=normPhone(p);return n?"tel:"+n:"";}
+
+/* Brother side: My rush in break mode */
+function myBreakHTML(t){
+  var h="";var cr=curCallRound();
+  if(cr){var mine=roundGuys().filter(function(r){return whoOf(cr,r.id)===t.id;});
+    var left=mine.filter(function(r){return !sendOf(cr,r.id);});
+    h+='<section class="section"><div class="spread"><h3>Your calls this week <span class="badge" style="vertical-align:middle;background:'+(left.length?"":"var(--good)")+'">'+(mine.length-left.length)+'/'+mine.length+'</span></h3></div>'+
+      '<p class="small muted" style="margin:0">Give each guy a call to see how break is going. After the call, mark how it went.</p>'+
+      (mine.length?'<div class="list">'+mine.map(function(r){var s=sendOf(cr,r.id);var tel=telHref(r.phone);
+        return '<div class="item" style="cursor:default;flex-wrap:wrap;gap:8px">'+avatarHTML(r)+'<span class="main" style="min-width:140px"><b role="button" tabindex="0" data-a="open-r" data-id="'+esc(r.id)+'" style="cursor:pointer">'+esc(r.name)+'</b><small>'+(s?"✓ "+esc(OUTCOME[s.outcome]||"Done")+(s.by!==t.id?" by "+esc(teamName(s.by).split(" ")[0]):"")+" · "+esc(ago(s.at)):esc(cleanPhone(r.phone)||"No number"))+'</small>'+(r.avoid?'<small style="color:var(--bad)">⚠ Avoid: '+esc(r.avoid)+'</small>':'')+'</span>'+
+          (s||readOnly?'':'<span class="row" style="gap:6px">'+(tel?'<a class="btn sm primary" href="'+esc(tel)+'">Call</a>':'')+'<button class="btn sm" data-a="call-out" data-v="talked" data-id="'+esc(r.id)+'">Talked</button><button class="btn sm ghost" data-a="call-out" data-v="voicemail" data-id="'+esc(r.id)+'">Voicemail</button><button class="btn sm ghost" data-a="call-text" data-id="'+esc(r.id)+'">Text instead</button></span>')+'</div>';}).join("")+'</div>'
+      :'<div class="empty">No calls assigned to you this week yet.</div>')+'</section>';}
+  roundsOpen("text").forEach(function(rd){var mine=roundGuys().filter(function(r){return whoOf(rd,r.id)===t.id;});if(!mine.length)return;var left=mine.filter(function(r){return !sendOf(rd,r.id);});
+    h+='<section class="section"><h3>'+esc(rd.name)+' <span class="badge" style="vertical-align:middle;background:'+(left.length?"":"var(--good)")+'">'+(mine.length-left.length)+'/'+mine.length+'</span></h3>'+
+      (left.length?'<div class="list">'+left.map(function(r){return '<div class="item" style="cursor:default"><span class="main"><b role="button" tabindex="0" data-a="open-r" data-id="'+esc(r.id)+'" style="cursor:pointer">'+esc(r.name)+'</b></span>'+(readOnly?'':'<span class="side row" style="gap:6px"><button class="btn sm primary" data-a="round-text" data-r="'+esc(rd.id)+'" data-id="'+esc(r.id)+'">Text '+esc(r.name.split(" ")[0])+'</button><button class="btn sm ghost" data-a="round-mark" data-r="'+esc(rd.id)+'" data-id="'+esc(r.id)+'">Mark sent</button></span>')+'</div>';}).join("")+'</div>':'<div class="small" style="color:var(--good)">All sent. Thanks brother!</div>')+'</section>';});
+  return h;}
+
+/* Coordinator side: switches + break on the Board */
+function modesHTML(){
+  if(!(isCoord()||me.isOwner))return "";
+  var sw=function(k,on,label,sub){return '<label class="item" style="cursor:pointer;gap:12px"><span class="main"><b>'+label+'</b><small>'+sub+'</small></span><input type="checkbox" data-change="mode" data-k="'+k+'"'+(on?" checked":"")+' style="width:22px;height:22px;accent-color:var(--purple)"></label>';};
+  return '<section class="section"><h3>Seasons</h3><div class="list">'+sw("breakMode",breakOn(),"Break mode","Calls and holiday texts show for the whole team")+sw("cardMode",cardsOn(),"Christmas card mode","Card tracker shows for the whole team")+'</div></section>';}
+function boardBreakHTML(){
+  if(!breakOn()&&!roundsOpen().length&&!(isCoord()&&S.rounds.size))return "";
+  var wk=weekOf(today());var cr=curCallRound();var h='<section class="section"><div class="spread"><h3>Break'+(breakOn()?"":" (break mode is off)")+'</h3>'+(isCoord()?'<button class="btn sm" data-a="round-new">+ Holiday text</button>':'')+'</div>';
+  if(!cr&&isCoord()&&breakOn())h+='<button class="btn primary" data-a="call-week">Start calls for the week of '+esc(new Date(+wk.slice(0,4),+wk.slice(5,7)-1,+wk.slice(8,10)).toLocaleDateString("en-US",{month:"short",day:"numeric"}))+'</button>';
+  var rs=roundsOpen();
+  if(rs.length)h+='<div class="list">'+rs.map(function(rd){var st=roundStats(rd);var pct=st.total?Math.round(st.done/st.total*100):0;
+    return '<a class="item" href="#round:'+esc(rd.id)+'"><span class="main"><b>'+esc(rd.name)+'</b><small>'+st.done+' of '+st.total+' done'+(st.unassigned?' · <span style="color:var(--warn)">'+st.unassigned+' not assigned</span>':'')+'</small><span class="pipe" style="margin-top:6px"><i style="width:'+pct+'%;background:var(--good)"></i></span></span></a>';}).join("")+'</div>';
+  else if(!isCoord())h+='<div class="small muted">Nothing started yet.</div>';
+  var past=arr(S.rounds).filter(function(r){return !roundActive(r);}).sort(function(a,b){return (b.createdAt||0)-(a.createdAt||0);});
+  if(past.length)h+='<details><summary class="small muted">Past ('+past.length+')</summary><div class="list">'+past.map(function(rd){var st=roundStats(rd);return '<a class="item" href="#round:'+esc(rd.id)+'"><span class="main"><b>'+esc(rd.name)+'</b><small>'+st.done+' of '+st.total+' done</small></span></a>';}).join("")+'</div></details>';
+  if(isCoord())h+='<p class="small muted" style="margin:0">Happy Thanksgiving, Merry Christmas and Happy New Year set themselves up on the Monday of Thanksgiving week, Dec 23 and Dec 31 while break mode is on. Assign brothers when they appear. Each one clears off My rush after a week.</p>';
+  return h+'</section>';}
+function vRound(id){
+  var rd=S.rounds.get(id);if(!rd)return '<div class="empty">That round isn’t here anymore. <a href="#board">Back to the Board</a></div>';
+  var st=roundStats(rd);var f=ui.rf||"all";var team=arr(S.team).sort(byName);
+  var h='<div class="spread"><div><h2>'+esc(rd.name)+'</h2><div class="muted small">'+st.done+' of '+st.total+' done'+(rd.closed?" · closed":"")+'</div></div><a class="btn ghost" href="#board">Board</a></div>';
+  if(isCoord()){
+    if(rd.kind==="text")h+='<form class="card" data-form="roundmsg" data-id="'+esc(rd.id)+'" style="gap:8px"><label for="rm-t" class="small"><b>Message</b> · {first} = his first name, {events} = upcoming events</label><textarea id="rm-t" name="msg">'+esc(rd.msg||"")+'</textarea><div class="row"><button class="btn sm" type="submit">Save message</button></div></form>';
+    h+='<div class="row">'+(st.unassigned?'<button class="btn primary" data-a="round-auto" data-id="'+esc(rd.id)+'">Auto-assign the '+st.unassigned+' unassigned</button>':'')+'<button class="btn ghost" data-a="round-close" data-id="'+esc(rd.id)+'">'+(rd.closed?"Reopen":"Close")+'</button><button class="btn danger ghost" data-a="round-del" data-id="'+esc(rd.id)+'">Delete</button></div>'+
+      (st.unassigned?'<p class="small muted" style="margin:0">Auto-assign gives each guy the brother who had him last time, then whoever’s closest to him, then whoever has the fewest.</p>':'');
+    var by={};roundGuys().forEach(function(r){var w=whoOf(rd,r.id);if(w&&!sendOf(rd,r.id))by[w]=(by[w]||0)+1;});
+    var bk=Object.keys(by).sort(function(a,b){return by[b]-by[a];});
+    if(bk.length)h+='<details class="card"><summary><b>Brothers with some left</b> ('+bk.length+')</summary><div class="list">'+bk.map(function(tid){var tm=S.team.get(tid);var f1=tm.name.split(" ")[0];var hr=extText(tm.phone,"Hey "+f1+"! You've got "+by[tid]+" left for "+rd.name+" in the BYX Rush Portal. Thanks brother!",f1);
+      return '<div class="item" style="cursor:default"><span class="main"><b>'+esc(tm.name)+'</b><small>'+by[tid]+' left</small></span>'+(hr?'<a class="btn sm" href="'+esc(hr)+'">Nudge</a>':'')+'</div>';}).join("")+'</div></details>';}
+  h+='<div class="filters">'+[["all","All"],["un","Not assigned"],["left","Not done"],["done","Done"]].map(function(x){return '<button data-a="rf" data-v="'+x[0]+'" aria-pressed="'+(f===x[0])+'">'+x[1]+'</button>';}).join("")+'</div>';
+  var rows=roundGuys().filter(function(r){var w=whoOf(rd,r.id),s=sendOf(rd,r.id);return f==="all"||(f==="un"&&!w)||(f==="left"&&!s)||(f==="done"&&!!s);});
+  h+='<div class="list">'+rows.slice(0,400).map(function(r){var w=whoOf(rd,r.id),s=sendOf(rd,r.id);
+    return '<div class="item" style="cursor:default;flex-wrap:wrap;gap:8px"><span class="main" style="min-width:150px"><b role="button" tabindex="0" data-a="open-r" data-id="'+esc(r.id)+'" style="cursor:pointer">'+esc(r.name)+'</b><small>'+(s?'<span style="color:var(--good)">✓ '+esc(OUTCOME[s.outcome]||"Done")+' by '+esc(teamName(s.by).split(" ")[0])+' · '+esc(ago(s.at))+'</span>':(w?"Not done yet":'<span style="color:var(--warn)">Not assigned</span>'))+'</small></span>'+
+      (isCoord()?'<select data-change="round-who" data-r="'+esc(rd.id)+'" data-id="'+esc(r.id)+'" aria-label="Brother for '+esc(r.name)+'" style="width:auto;max-width:48%"><option value="">Assign…</option>'+team.map(function(t){return '<option value="'+esc(t.id)+'"'+(w===t.id?" selected":"")+'>'+esc(t.name)+'</option>';}).join("")+'</select>':(w?'<span class="tag">'+esc(teamName(w))+'</span>':''))+'</div>';}).join("")+'</div>'+(rows.length>400?'<div class="small muted">Showing 400.</div>':'');
+  return h;}
+
+/* Christmas cards */
+function stageLabel(k){var x=STAGES.filter(function(s){return s[0]===k;})[0];return x?x[1]:k;}
+function cardOf(rid){return S.cards.get(rid)||{rusheeId:rid,signers:[],signedBy:[]};}
+function cardGuys(){return arr(S.rushees).filter(function(r){var c=S.cards.get(r.id);return !!(c&&c.eligible);}).sort(byName);}
+function addrOf(rid){var a=S.addresses.get(rid);return a&&a.text?a.text:"";}
+function hasAddr(rid){return !!addrOf(rid)||!!(S.cards.get(rid)||{}).hasAddress;}
+function cardSigned(c){var sg=c.signedBy||[],as=c.signers||[];return sg.length>0&&as.every(function(t){return sg.indexOf(t)>=0;});}
+function cardSave(rid,patch){var ex=S.cards.get(rid);return ex?updDoc("cards/"+rid,patch):setDoc("cards/"+rid,Object.assign({rusheeId:rid,signers:[],signedBy:[]},patch));}
+var ADDR_ASK="Hey {first}! BYX is sending out Christmas cards this year and we'd love to send you one. What's the best address to mail it to?";
+function vCards(){
+  if(!cardsOn()&&!isCoord()&&!me.viewer)return '<div class="empty">Christmas cards aren’t turned on yet.</div>';
+  var t=myTeam();var g=cardGuys();var f=ui.cf||"all";var team=arr(S.team).sort(byName);var canAddr=!me.viewer;
+  var n={addr:0,signed:0,addressed:0,sent:0,received:0};g.forEach(function(r){var c=cardOf(r.id);if(hasAddr(r.id))n.addr++;if(cardSigned(c))n.signed++;if(c.addressed)n.addressed++;if(c.sent)n.sent++;if(c.received)n.received++;});
+  var h='<div class="spread"><div><h2>Christmas cards</h2>'+(!cardsOn()?'<div class="small" style="color:var(--warn)">Card mode is off: only coordinators see this.</div>':'')+'</div>'+(isCoord()&&canAddr?'<div class="row"><button class="btn" data-a="card-pick">Choose who gets a card</button><button class="btn ghost" data-a="cards-print">Address list</button></div>':'')+'</div>';
+  if(!g.length)return h+'<div class="empty">'+(isCoord()?'No one is on the card list yet. Tap <b>Choose who gets a card</b>, or check <b>Christmas card</b> on a guy’s profile.':'Jonah and Clark haven’t picked who gets a card yet.')+'</div>';
+  var tile=function(v,l){return '<div class="tile"><span class="num">'+v+'</span><span>'+l+'</span></div>';};
+  h+='<div class="tiles">'+tile(g.length,"Getting a card")+tile(n.addr,"Have an address")+tile(n.signed,"Signed")+tile(n.addressed,"Addressed")+tile(n.sent,"Sent")+tile(n.received,"Received")+'</div>';
+  var fs=[["all","All"],["noaddr","Need address"],["unsigned","Not signed"]].concat(t?[["mine","Mine to sign"]]:[]).concat([["ready","Ready to address"],["mail","Ready to mail"],["sent","Sent"],["received","Received"]]);
+  h+='<div class="filters">'+fs.map(function(x){return '<button data-a="cf" data-v="'+x[0]+'" aria-pressed="'+(f===x[0])+'">'+x[1]+'</button>';}).join("")+'</div>';
+  if(isCoord())h+='<div class="row"><select data-change="cf-signer" aria-label="Show cards for a brother" style="width:auto"><option value="">Cards for any brother</option>'+team.map(function(x){return '<option value="'+esc(x.id)+'"'+(ui.cfs===x.id?" selected":"")+'>'+esc(x.name)+'</option>';}).join("")+'</select></div>';
+  var rows=g.filter(function(r){var c=cardOf(r.id);var sg=cardSigned(c);
+    if(ui.cfs&&(c.signers||[]).indexOf(ui.cfs)<0)return false;
+    switch(f){case "noaddr":return !hasAddr(r.id);case "unsigned":return !sg;case "mine":return t&&(c.signers||[]).indexOf(t.id)>=0&&(c.signedBy||[]).indexOf(t.id)<0;
+      case "ready":return sg&&hasAddr(r.id)&&!c.addressed;case "mail":return c.addressed&&!c.sent;case "sent":return c.sent&&!c.received;case "received":return !!c.received;}return true;});
+  h+='<div class="list">'+rows.slice(0,400).map(function(r){var c=cardOf(r.id);var sg=c.signedBy||[],as=c.signers||[];var mineS=t&&as.indexOf(t.id)>=0,iSigned=t&&sg.indexOf(t.id)>=0;
+    var who=as.map(function(x){return '<span class="tag"'+(sg.indexOf(x)>=0?' style="color:var(--good)"':'')+'>'+(sg.indexOf(x)>=0?"✓ ":"")+esc(teamName(x).split(" ")[0])+'</span>';}).join(" ")+sg.filter(function(x){return as.indexOf(x)<0;}).map(function(x){return ' <span class="tag" style="color:var(--good)">✓ '+esc(teamName(x).split(" ")[0])+'</span>';}).join("");
+    var steps=[hasAddr(r.id)?"Address ✓":'<span style="color:var(--warn)">Need address</span>',cardSigned(c)?"Signed ✓":(sg.length?sg.length+" signed":"Not signed"),c.addressed?"Addressed ✓":"",c.sent?"Sent ✓":"",c.received?"Received ✓":""].filter(Boolean).join(" · ");
+    var acts="";
+    if(!readOnly&&t){acts+=iSigned?'<button class="btn sm ghost" data-a="card-unsign" data-id="'+esc(r.id)+'">Undo signed</button>':'<button class="btn sm primary" data-a="card-sign" data-id="'+esc(r.id)+'">I signed it</button>';
+      if(!mineS&&!iSigned)acts+='<button class="btn sm" data-a="card-claim" data-id="'+esc(r.id)+'">I’ll sign this</button>';
+      if(!hasAddr(r.id))acts+='<button class="btn sm ghost" data-a="card-ask" data-id="'+esc(r.id)+'">'+(c.asked?"Asked ✓ · ask again":"Ask for address")+'</button>';}
+    if(!readOnly&&canAddr)acts+='<button class="btn sm ghost" data-a="card-edit" data-id="'+esc(r.id)+'">'+(isCoord()?"Edit":(hasAddr(r.id)?"Address":"Add address"))+'</button>';
+    return '<div class="item" style="cursor:default;display:block"><div class="spread" style="align-items:flex-start;gap:8px"><span class="main"><b role="button" tabindex="0" data-a="open-r" data-id="'+esc(r.id)+'" style="cursor:pointer">'+esc(r.name)+'</b><small>'+steps+'</small>'+(canAddr&&addrOf(r.id)?'<small style="white-space:pre-wrap">'+esc(addrOf(r.id))+'</small>':'')+'</span></div>'+
+      (who?'<div style="margin:6px 0 2px">'+who+'</div>':'')+(acts?'<div class="row" style="gap:6px;margin-top:6px">'+acts+'</div>':'')+'</div>';}).join("")+'</div>'+(rows.length?'':'<div class="empty">No cards here.</div>');
+  return h;}
+function vCardsPrint(){
+  if(me.viewer)return '<div class="empty">Not available.</div>';
+  var g=cardGuys().filter(function(r){var c=cardOf(r.id);return !c.sent;});
+  return '<div class="spread noprint"><h2>Address list</h2><div class="row"><button class="btn primary" data-a="print">Print</button><a class="btn ghost" href="#cards">Back</a></div></div>'+
+    '<p class="small muted noprint" style="margin:0">Every card not sent yet. Guys without an address are listed at the end.</p>'+
+    '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px">'+g.filter(function(r){return addrOf(r.id);}).map(function(r){return '<div class="card" style="gap:2px;break-inside:avoid"><b>'+esc(r.name)+'</b><div class="small" style="white-space:pre-wrap">'+esc(addrOf(r.id))+'</div></div>';}).join("")+'</div>'+
+    '<h3>No address yet</h3><div class="small">'+g.filter(function(r){return !addrOf(r.id);}).map(function(r){return esc(r.name);}).join(", ")+'</div>';}
+
 /* My rush */
 function vMe(){
+  ensureHolidayRounds();
   var t=myTeam();
   if(!t)return vClaim();
   var tdy=today();
@@ -808,10 +960,15 @@ function vMe(){
   var myNotes=arr(S.notes).filter(function(n){return n.teamId===t.id;}).sort(function(a,b){return (b.createdAt||0)-(a.createdAt||0);}).slice(0,6);
   var h='<div class="spread"><div><h2>Hey, '+esc(t.name.split(" ")[0])+'</h2><div class="muted small">'+esc(ROLES[t.role]||"Rush team")+(me.isOwner?" · Portal owner":"")+'</div></div>'+
     (isCoord()?'<button class="btn primary" data-a="new-l">+ Assign lunch</button>':"")+'</div>';
-  h+='<div class="tiles"><div class="tile'+(toSched.length?" alert":"")+'"><span class="num">'+toSched.length+'</span><span>To schedule</span></div><div class="tile"><span class="num">'+upcoming.length+'</span><span>Scheduled</span></div>'+
+  if(breakOn()){var cr9=curCallRound();var cl9=cr9?roundGuys().filter(function(r){return whoOf(cr9,r.id)===t.id&&!sendOf(cr9,r.id);}).length:0;
+    var tl9=0;roundsOpen("text").forEach(function(rd){tl9+=roundGuys().filter(function(r){return whoOf(rd,r.id)===t.id&&!sendOf(rd,r.id);}).length;});
+    h+='<div class="tiles"><div class="tile'+(cl9?" alert":"")+'"><span class="num">'+cl9+'</span><span>Calls left this week</span></div><div class="tile'+(tl9?" alert":"")+'"><span class="num">'+tl9+'</span><span>Holiday texts left</span></div><div class="tile'+(owed.length?" alert":"")+'"><span class="num">'+owed.length+'</span><span>Notes you owe</span></div><div class="tile"><span class="num">'+upcoming.length+'</span><span>Lunches scheduled</span></div></div>';}
+  else h+='<div class="tiles"><div class="tile'+(toSched.length?" alert":"")+'"><span class="num">'+toSched.length+'</span><span>To schedule</span></div><div class="tile"><span class="num">'+upcoming.length+'</span><span>Scheduled</span></div>'+
      '<div class="tile'+(owed.length?" alert":"")+'"><span class="num">'+owed.length+'</span><span>Notes you owe</span></div>'+
      '<div class="tile"><span class="num">'+myR.length+'</span><span>Your guys</span></div></div>';
-  if(!readOnly)h+='<div class="row"><button class="btn primary" data-a="plan-own">+ Plan a lunch</button><button class="btn" data-a="sub-lunch">+ Log a lunch I went on</button><button class="btn" data-a="sub-pnm">+ Suggest a new PNM</button>'+(myR.length?'<button class="btn ghost" data-a="save-contacts-mine">Save my guys to contacts</button>':'')+'</div>';
+  if(cardsOn())h+='<a class="item" href="#cards" style="border:1px solid var(--line);border-radius:12px"><span class="main"><b>🎄 Christmas cards</b><small>'+(function(){var c=cardGuys().filter(function(r){var x=cardOf(r.id);return (x.signers||[]).indexOf(t.id)>=0&&(x.signedBy||[]).indexOf(t.id)<0;}).length;return c?c+" card"+(c===1?"":"s")+" for you to sign":"Sign cards, add addresses";})()+'</small></span><span class="side">›</span></a>';
+  if(breakOn()){h+=myBreakHTML(t);if(!readOnly)h+='<div class="row"><button class="btn primary" data-a="call-log">+ Log a call</button></div>';}
+  if(!readOnly)h+='<div class="row"><button class="btn'+(breakOn()?'':' primary')+'" data-a="plan-own">+ Plan a lunch</button><button class="btn" data-a="sub-lunch">+ Log a lunch I went on</button><button class="btn" data-a="sub-pnm">+ Suggest a new PNM</button>'+(myR.length?'<button class="btn ghost" data-a="save-contacts-mine">Save my guys to contacts</button>':'')+'</div>';
   var mySubs=arr(S.submissions).filter(function(x){return x.by===t.id&&x.status==="pending";}).sort(function(a,b){return (b.createdAt||0)-(a.createdAt||0);});
   if(mySubs.length>3)h+='<div class="small muted" style="padding:2px 4px">You have <b>'+mySubs.length+'</b> submissions waiting for Jonah and Clark to review. They disappear from here once reviewed.</div>';
   else if(mySubs.length)h+='<section class="section"><h3>Waiting for review</h3><div class="list">'+mySubs.map(function(x){
@@ -854,12 +1011,14 @@ function vClaim(){
 
 /* Board */
 function vBoard(){
+  ensureHolidayRounds();
   var rs=arr(S.rushees);var active=rs.filter(ACTIVE);var tdy=today(),wk=addDays(tdy,7),wkAgo=Date.now()-7*86400000;
   var weekL=arr(S.lunches).filter(function(l){return l.status!=="cancelled"&&l.date>=tdy&&l.date<wk;}).sort(lunchSort);
   var need=active.filter(function(r){return !hasLunch(r.id);}).sort(byName);
   var notesWk=arr(S.notes).filter(function(n){return (n.createdAt||0)>=wkAgo;}).length;
   var counts={};STAGES.forEach(function(s){counts[s[0]]=0;});rs.forEach(function(r){counts[r.stage||"new"]=(counts[r.stage||"new"]||0)+1;});
   var h='<div class="spread"><h2>Rush board</h2>'+(isCoord()?'<div class="row"><a class="btn ghost" href="#report">Report</a><a class="btn" href="#import">Import sheet</a><a class="btn" href="#plan">Plan a week</a><button class="btn primary" data-a="new-l">+ Assign lunch</button></div>':(me.viewer||me.isOwner?'<a class="btn primary" href="#report">Recruitment report</a>':""))+'</div>';
+  h+=modesHTML()+boardBreakHTML()+(cardsOn()||isCoord()?'<a class="item" href="#cards" style="border:1px solid var(--line);border-radius:12px;margin-bottom:12px"><span class="main"><b>🎄 Christmas cards</b><small>'+(cardsOn()?"On for the team":"Off · coordinators can set it up")+'</small></span><span class="side">›</span></a>':'');
   var thisWk=weekOf(tdy);
   var left=arr(S.lunches).filter(function(l){return l.status==="planned"&&!l.date&&l.week&&weekOf(l.week)<thisWk;}).sort(function(a,b){return rName((a.rusheeIds||[])[0]).localeCompare(rName((b.rusheeIds||[])[0]));});
   if(isCoord()&&left.length){
@@ -1531,16 +1690,17 @@ function drawerHTML(){
   var ls_=lunchesFor(r.id).sort(lunchSort).reverse();var ns=notesFor(r.id);var avg=avgRating(r.id);
   var kv=[["Year",r.year],["Major",r.major],["Hometown",r.hometown],["Dorm",r.dorm],["Phone",r.phone],["Email",r.email],["Instagram",r.insta],["Church",r.church],["Referred by",r.referredBy],["Interests",r.interests]].filter(function(x){return x[1];});
   var extra=r.extra||{};Object.keys(extra).forEach(function(k){if(extra[k])kv.push([k,extra[k]]);});
-  var h='<div class="scrim" data-a="close-drawer"><aside class="drawer" data-stop="1" aria-label="Rushee profile">'+
+  var h='<div class="scrim" data-a="close-drawer"><aside class="drawer" data-stop="1" aria-label="Rushee profile"'+(readOnly?'':' data-drop="'+esc(r.id)+'"')+'>'+
     '<div class="spread"><button class="btn sm ghost" data-a="close-drawer">← Back</button>'+(coord?'<div class="row"><button class="btn sm" data-a="edit-r" data-id="'+esc(r.id)+'">Edit</button></div>':"")+'</div>'+
     '<div class="row">'+(r.photoData?'<button class="photo-btn" data-a="photo-view" data-id="'+esc(r.id)+'" aria-label="See '+esc(r.name)+'’s photo larger">'+avatarHTML(r,true)+'</button>':avatarHTML(r,true))+'<div style="min-width:0"><h2 style="font-size:24px">'+esc(r.name)+'</h2><div class="row" style="gap:8px;margin-top:4px">'+pill(r.stage)+(avg!=null?'<span class="small muted">Team interest '+stars(avg)+' <span class="num">'+avg.toFixed(1)+'</span></span>':"")+'</div></div></div>';
   if(coord){
     h+='<div class="fields"><div class="field"><label for="d-stage">Stage</label><select id="d-stage" data-change="stage" data-id="'+esc(r.id)+'">'+STAGES.map(function(s){return '<option value="'+s[0]+'"'+((r.stage||"new")===s[0]?" selected":"")+'>'+s[1]+'</option>';}).join("")+'</select></div>'+
        '<div class="field"><label for="d-point">Point brother</label><select id="d-point" data-change="point" data-id="'+esc(r.id)+'"><option value="">None</option>'+arr(S.team).sort(byName).map(function(t){return '<option value="'+esc(t.id)+'"'+(r.pointId===t.id?" selected":"")+'>'+esc(t.name)+'</option>';}).join("")+'</select></div></div>';
+    h+='<label class="row small" style="gap:10px;align-items:center;cursor:pointer"><input type="checkbox" data-change="card-elig" data-id="'+esc(r.id)+'"'+((S.cards.get(r.id)||{}).eligible?" checked":"")+' style="width:20px;height:20px;accent-color:var(--purple)"> <span>🎄 <b>Christmas card</b>: he’s getting one</span></label>';
   } else if(r.pointId){h+='<div class="small muted">Point brother: <b style="color:var(--text)">'+esc(teamName(r.pointId))+'</b></div>';}
   var tools='';
   if(!readOnly&&normPhone(r.phone))tools+='<button class="btn sm" data-a="save-contact" data-id="'+esc(r.id)+'">Save to contacts</button>';
-  if(!readOnly)tools+='<label class="btn sm" style="cursor:pointer">'+(r.photoData?"Change photo":"Add photo")+'<input type="file" accept="image/*" data-change="photo" data-id="'+esc(r.id)+'" hidden></label>';
+  if(!readOnly)tools+='<label class="btn sm" style="cursor:pointer">'+(r.photoData?"Change photo":"Add photo")+'<input type="file" accept="image/*" data-change="photo" data-id="'+esc(r.id)+'" hidden></label><span class="small muted dnd-hint">or drag a photo onto this page</span>';
   if(sampleApi)tools+='<button class="btn sm primary" data-a="brief" data-id="'+esc(r.id)+'">✦ Brief me on him</button>';
   if(tools)h+='<div class="row">'+tools+'</div>';
   var br=ui.brief[r.id];
@@ -1671,6 +1831,46 @@ function modalHTML(){
       '<a class="item calopt" href="'+esc(ci.google)+'" target="_blank" rel="noopener"><span class="main"><b>Google Calendar</b><small>Opens with the lunch filled in.</small></span></a>'+
       '<a class="item calopt" href="'+esc(ci.outlook)+'" target="_blank" rel="noopener"><span class="main"><b>Outlook</b><small>For your Baylor calendar.</small></span></a></div>'+
       '<p class="small muted" style="margin:0">Apple Calendar not opening from the home-screen app? Open baylor-byx.github.io in Safari and try again there.</p>':'<div class="empty">This lunch has no date yet.</div>')+'</div>';
+  } else if(m.type==="roundnew"){
+    var pr=TEXT_PRESETS.find(function(x){return x[0]===(m.preset||"thanksgiving");})||TEXT_PRESETS[0];
+    h+='<form class="section" data-form="roundnew"><div class="spread"><h2>New holiday text</h2><button type="button" class="btn sm ghost" data-a="close-modal">Cancel</button></div>'+
+      '<div class="filters">'+TEXT_PRESETS.map(function(x){return '<button type="button" data-a="round-preset" data-v="'+x[0]+'" aria-pressed="'+(pr[0]===x[0])+'">'+(x[1]||"Custom")+'</button>';}).join("")+'</div>'+
+      '<div class="field"><label for="rn-n">Name</label><input type="text" id="rn-n" name="name" required value="'+esc(pr[1])+'" placeholder="e.g. Finals week encouragement"></div>'+
+      '<div class="field"><label for="rn-m">Message</label><textarea id="rn-m" name="msg" style="min-height:110px">'+esc(pr[2])+'</textarea><div class="small muted">{first} becomes his first name. {events} becomes the upcoming events from the Events tab. Brothers can still edit each text before sending.</div></div>'+
+      '<div class="row"><button class="btn primary" type="submit">Create</button></div><p class="small muted" style="margin:0">Goes to every active guy. You assign who texts whom on the next screen, or tap Auto-assign.</p></form>';
+  } else if(m.type==="roundtext"){
+    var RD=S.rounds.get(m.r)||{};var RR=S.rushees.get(m.id);var rmsg=RR?fillMsg(m.call?CALL_TEXT:RD.msg,m.id):"";var rx=RR?extText(RR.phone,rmsg,RR.name.split(" ")[0]):"";
+    h+='<div class="section"><div class="spread"><h2>Text '+esc(RR?RR.name.split(" ")[0]:"")+'</h2><button type="button" class="btn sm ghost" data-a="close-modal">Cancel</button></div>'+(RR&&RR.avoid?'<div class="avoid"><b>⚠ Avoid:</b> '+esc(RR.avoid)+'</div>':'')+
+      msgArea(rmsg,RR?RR.phone:"")+EDITHINT+'<div class="row">'+(rx?'<a class="btn primary" href="'+esc(rx)+'" data-a="round-sent" data-r="'+esc(m.r)+'" data-id="'+esc(m.id)+'" data-v="'+(m.call?"texted":"sent")+'">Text '+esc(RR.name.split(" ")[0])+'</a>':'')+
+      '<button class="btn'+(rx?' ghost':' primary')+'" data-a="copy-raw" data-v="'+esc((RR&&RR.phone?RR.phone+"\n":"")+rmsg)+'">Copy</button></div><p class="small muted" style="margin:0">Sending checks him off.</p></div>';
+  } else if(m.type==="callnote"){
+    var CR=S.rushees.get(m.id);
+    h+='<div class="section"><div class="spread"><h2>Call with '+esc(CR?CR.name.split(" ")[0]:"")+' ✓</h2><button type="button" class="btn sm ghost" data-a="close-modal">Skip</button></div>'+noteForm("call-"+m.id,m.id,"","How did the call go?")+'</div>';
+  } else if(m.type==="calllog"){
+    h+='<form class="section" data-form="calllog"><div class="spread"><h2>Log a call</h2><button type="button" class="btn sm ghost" data-a="close-modal">Cancel</button></div>'+
+      '<div class="field"><label for="cl-r">Who did you call? *</label><input type="text" id="cl-r" name="rushee" list="rlistall3" required placeholder="Start typing his name"><datalist id="rlistall3">'+arr(S.rushees).filter(ACTIVE).sort(byName).map(function(x){return '<option value="'+esc(x.name)+'">';}).join("")+'</datalist></div>'+
+      '<div class="field"><label>How did it go?</label><div class="chips">'+[["talked","Talked"],["voicemail","Left a voicemail"],["texted","Texted instead"]].map(function(o,i){return '<label class="chip"><input type="radio" name="outcome" value="'+o[0]+'"'+(i?"":" checked")+'> '+o[1]+'</label>';}).join("")+'</div></div>'+
+      '<div class="row"><button class="btn primary" type="submit">Save</button></div></form>';
+  } else if(m.type==="cardask"){
+    var AR=S.rushees.get(m.id);var amsg=AR?fillMsg(ADDR_ASK,m.id):"";var ax=AR?extText(AR.phone,amsg,AR.name.split(" ")[0]):"";
+    h+='<div class="section"><div class="spread"><h2>'+esc(AR?AR.name.split(" ")[0]:"")+'’s address</h2><button type="button" class="btn sm ghost" data-a="close-modal">Cancel</button></div>'+
+      msgArea(amsg,AR?AR.phone:"")+EDITHINT+'<div class="row">'+(ax?'<a class="btn primary" href="'+esc(ax)+'" data-a="card-asked" data-id="'+esc(m.id)+'">Text '+esc(AR.name.split(" ")[0])+'</a>':'')+'<button class="btn'+(ax?' ghost':' primary')+'" data-a="copy-raw" data-v="'+esc((AR&&AR.phone?AR.phone+"\n":"")+amsg)+'">Copy</button></div>'+
+      '<p class="small muted" style="margin:0">When he replies, tap Add address on his card and paste it in.</p></div>';
+  } else if(m.type==="cardpick"){
+    var q=norm(m.q||"");var sel=m.sel||(m.sel=(function(){var o={};arr(S.cards).forEach(function(c){if(c.eligible)o[c.id]=1;});return o;})());
+    var guys=arr(S.rushees).filter(function(r){return ACTIVE(r)||sel[r.id];}).sort(byName);var shown=guys.filter(function(r){return !q||norm(r.name).indexOf(q)>=0;});
+    h+='<div class="section"><div class="spread"><h2>Who gets a card</h2><button type="button" class="btn sm ghost" data-a="close-modal">Cancel</button></div>'+
+      '<input type="search" id="cp-q" data-change-input="cp-q" placeholder="Search" value="'+esc(m.q||"")+'" aria-label="Search guys">'+
+      '<div class="row small"><button type="button" class="btn sm ghost" data-a="cp-stage" data-v="strong">+ All Strong</button><button type="button" class="btn sm ghost" data-a="cp-stage" data-v="interested">+ All Interested</button><button type="button" class="btn sm ghost" data-a="cp-stage" data-v="none">Clear all</button></div>'+
+      '<div class="list" style="max-height:46vh;overflow:auto">'+shown.map(function(r){return '<label class="item" style="cursor:pointer"><input type="checkbox" data-change="cp-one" data-id="'+esc(r.id)+'"'+(sel[r.id]?" checked":"")+' style="width:20px;height:20px;accent-color:var(--purple)"><span class="main"><b>'+esc(r.name)+'</b><small>'+esc(stageLabel(r.stage||"new"))+'</small></span></label>';}).join("")+'</div>'+
+      '<div class="row"><button class="btn primary" data-a="cp-save">Save · '+Object.keys(sel).length+' getting a card</button></div></div>';
+  } else if(m.type==="cardedit"){
+    var ER=S.rushees.get(m.id)||{};var EC=cardOf(m.id);var co=isCoord();
+    h+='<form class="section" data-form="cardedit" data-id="'+esc(m.id)+'"><div class="spread"><h2>'+esc(ER.name||"Card")+'</h2><button type="button" class="btn sm ghost" data-a="close-modal">Cancel</button></div>'+
+      '<div class="field"><label for="ce-a">Mailing address</label><textarea id="ce-a" name="address" placeholder="Street&#10;City, State ZIP" style="min-height:80px">'+esc(addrOf(m.id))+'</textarea></div>'+
+      (co?'<div class="field"><label>Who signs it</label><div class="chips">'+arr(S.team).sort(byName).map(function(x){return '<label class="chip"><input type="checkbox" name="signer" value="'+esc(x.id)+'"'+((EC.signers||[]).indexOf(x.id)>=0?" checked":"")+'> '+esc(x.name)+'</label>';}).join("")+'</div></div>':'')+
+      '<div class="chips">'+[["addressed","Addressed"]].concat(co?[["sent","Sent"],["received","Received"]]:[]).map(function(x){return '<label class="chip"><input type="checkbox" name="'+x[0]+'"'+(EC[x[0]]?" checked":"")+'> '+x[1]+'</label>';}).join("")+'</div>'+
+      '<div class="spread">'+(co?'<button type="button" class="btn danger ghost" data-a="card-remove" data-id="'+esc(m.id)+'">Take him off the card list</button>':'<span></span>')+'<button class="btn primary" type="submit">Save</button></div></form>';
   } else if(m.type==="planown"){
     h+='<form class="section" data-form="planown"><div class="spread"><h2>Plan a lunch</h2><button type="button" class="btn sm ghost" data-a="close-modal">Cancel</button></div>'+
       '<p class="muted small" style="margin:0">Set up a lunch or coffee with a guy on your own? Put it here and it goes on your schedule and the rush calendar.</p>'+
@@ -1822,6 +2022,34 @@ document.addEventListener("click",function(e){
       var fallback=function(){if(box.type==="hidden"){toast("Couldn't copy. Long-press the number to copy it.");return;}try{box.focus();box.select();box.setSelectionRange(0,v.length);}catch(e){}toast("Selected. Press Cmd+C (or long-press and Copy).");};
       try{navigator.clipboard.writeText(v).then(ok,fallback);}catch(e){fallback();}})();break;
     case "sms-open":break;
+    case "call-out":(function(){var cr=curCallRound();var v=el.dataset.v;markSend(cr,id,v).then(function(){if(v==="talked"){ui.modal={type:"callnote",id:id};render();}else{toast("Saved");if(v==="voicemail"){ui.modal={type:"roundtext",r:cr?cr.id:"",id:id,call:true};render();}}});})();break;
+    case "call-text":(function(){var cr=curCallRound();ui.modal={type:"roundtext",r:cr?cr.id:"",id:id,call:true};render();})();break;
+    case "call-log":ui.modal={type:"calllog"};render();focusFirst();break;
+    case "round-text":ui.modal={type:"roundtext",r:el.dataset.r,id:id};render();break;
+    case "round-mark":markSend(S.rounds.get(el.dataset.r),id,"sent").then(function(){toast("Checked off");});break;
+    case "round-sent":(function(){var rd=S.rounds.get(el.dataset.r);var v=el.dataset.v;if(rd&&!sendOf(rd,id))markSend(rd,id,v);else if(!rd)logReach(id,"text");setTimeout(function(){if(ui.modal&&ui.modal.type==="roundtext"){ui.modal=null;render();}},300);})();break;
+    case "round-new":ui.modal={type:"roundnew",preset:"thanksgiving"};render();break;
+    case "round-preset":ui.modal.preset=el.dataset.v;render();break;
+    case "call-week":(function(){var wk=weekOf(today());if(curCallRound())return;var nm="Calls · week of "+new Date(+wk.slice(0,4),+wk.slice(5,7)-1,+wk.slice(8,10)).toLocaleDateString("en-US",{month:"short",day:"numeric"});var t0=myTeam();var nid=newId("rd");
+      el.disabled=true;setDoc("rounds/"+nid,{name:nm,kind:"call",week:wk,assign:{},createdAt:Date.now(),createdBy:t0?t0.id:"",closed:false}).then(function(){location.hash="round:"+nid;},function(){el.disabled=false;});})();break;
+    case "round-auto":(function(){var rd=S.rounds.get(id);if(!rd)return;el.disabled=true;autoAssign(rd).catch(function(){el.disabled=false;});})();break;
+    case "round-close":(function(){var rd=S.rounds.get(id);if(rd)updDoc("rounds/"+id,{closed:!rd.closed}).then(function(){toast(rd.closed?"Reopened":"Closed");});})();break;
+    case "round-del":if(armed(el,"rdel"+id)){delDoc("rounds/"+id).then(function(){location.hash="board";toast("Deleted");});}break;
+    case "rf":ui.rf=el.dataset.v;render();break;
+    case "cf":ui.cf=el.dataset.v;render();break;
+    case "cards-print":location.hash="cards-print";break;
+    case "card-sign":(function(){var t0=myTeam();if(!t0)return;var c=cardOf(id);var sg=(c.signedBy||[]).slice();if(sg.indexOf(t0.id)<0)sg.push(t0.id);var as=(c.signers||[]).slice();if(as.indexOf(t0.id)<0)as.push(t0.id);cardSave(id,{signedBy:sg,signers:as}).then(function(){toast("Signed ✓");});})();break;
+    case "card-unsign":(function(){var t0=myTeam();if(!t0)return;var c=cardOf(id);cardSave(id,{signedBy:(c.signedBy||[]).filter(function(x){return x!==t0.id;})});})();break;
+    case "card-claim":(function(){var t0=myTeam();if(!t0)return;var c=cardOf(id);var as=(c.signers||[]).slice();if(as.indexOf(t0.id)<0)as.push(t0.id);cardSave(id,{signers:as}).then(function(){toast("It’s on your list to sign");});})();break;
+    case "card-ask":ui.modal={type:"cardask",id:id};render();break;
+    case "card-asked":(function(){var t0=myTeam();logReach(id,"text");cardSave(id,{asked:true,askedBy:t0?t0.id:""});setTimeout(function(){if(ui.modal&&ui.modal.type==="cardask"){ui.modal=null;render();}},300);})();break;
+    case "card-edit":ui.modal={type:"cardedit",id:id};render();break;
+    case "card-remove":cardSave(id,{eligible:false}).then(function(){ui.modal=null;render();toast("Taken off the card list");});break;
+    case "cp-stage":(function(){var v=el.dataset.v;var m=ui.modal;if(v==="none")m.sel={};else arr(S.rushees).forEach(function(r){if((r.stage||"new")===v)m.sel[r.id]=1;});render();})();break;
+    case "cp-save":(function(){var sel=ui.modal.sel||{};var b=db.batch();var n=0;
+      arr(S.rushees).forEach(function(r){var c=S.cards.get(r.id);var want=!!sel[r.id];if(want===!!(c&&c.eligible))return;n++;var ref=db.doc("cards/"+r.id);if(c)b.update(ref,{eligible:want});else b.set(ref,{rusheeId:r.id,signers:[],signedBy:[],eligible:true});});
+      if(!n){ui.modal=null;render();return;}el.disabled=true;b.commit().then(function(){ui.modal=null;render();toast("Card list saved");},function(){el.disabled=false;toast("Couldn’t save");});})();break;
+    case "card-pick":ui.modal={type:"cardpick",q:""};render();break;
     case "rtext":ui.modal={type:"rtext",l:el.dataset.l,p:el.dataset.p};render();break;
     case "rtext-sent":(function(){logReach(el.dataset.r,"lunch",{lunchId:id});var L=S.lunches.get(id);if(L&&!L.reachedOut)updDoc("lunches/"+id,{reachedOut:true,reachedAt:Date.now()}).catch(function(){});setTimeout(function(){if(ui.modal&&ui.modal.type==="rtext"){ui.modal=null;render();}},300);})();break;
     case "rtext-copy":(function(){var v=el.dataset.v||"";var L=S.lunches.get(id);
@@ -1930,8 +2158,17 @@ document.addEventListener("keydown",function(e){
 });
 function focusFirst(){setTimeout(function(){var i=document.querySelector(".modal input");if(i)i.focus();},30);}
 
+(function(){var cur=null;var zone=function(e){return e.target&&e.target.closest?e.target.closest("[data-drop]"):null;};
+  var hasFile=function(e){var dt=e.dataTransfer;return dt&&Array.prototype.indexOf.call(dt.types||[],"Files")>=0;};
+  document.addEventListener("dragover",function(e){if(!hasFile(e))return;var z=zone(e);if(!z)return;e.preventDefault();e.dataTransfer.dropEffect="copy";if(cur!==z){if(cur)cur.classList.remove("dragover");cur=z;z.classList.add("dragover");}});
+  document.addEventListener("dragleave",function(e){if(cur&&!cur.contains(e.relatedTarget)){cur.classList.remove("dragover");cur=null;}});
+  document.addEventListener("drop",function(e){var z=zone(e);if(cur){cur.classList.remove("dragover");cur=null;}if(!z||!hasFile(e))return;e.preventDefault();
+    var f=Array.prototype.find.call(e.dataTransfer.files||[],function(x){return /^image\//.test(x.type);});if(!f){toast("That isn’t a photo");return;}uploadPhoto(z.dataset.drop,f);});
+  window.addEventListener("dragover",function(e){if(hasFile(e)&&!zone(e))e.preventDefault();});window.addEventListener("drop",function(e){if(hasFile(e)&&!zone(e))e.preventDefault();});
+})();
 document.addEventListener("input",function(e){
   var t=e.target;
+  if(t.id==="cp-q"&&ui.modal&&ui.modal.type==="cardpick"){ui.modal.q=t.value;render();var q2=document.getElementById("cp-q");if(q2){q2.focus();q2.setSelectionRange(q2.value.length,q2.value.length);}return;}
   if(t.classList&&t.classList.contains("msgedit")){var box=t.closest(".card")||t.closest(".section")||t.parentNode;var ns=(t.dataset.n||"").split(",").filter(Boolean);
     box.querySelectorAll('a[href^="sms"]').forEach(function(a){if(ns.length)a.href=smsHref(ns,t.value);});
     box.querySelectorAll('[data-v]').forEach(function(b){b.dataset.v=(t.dataset.pre||"")+t.value;});return;}
@@ -1957,6 +2194,11 @@ document.addEventListener("change",function(e){
   else if(c==="point")updDoc("rushees/"+t.dataset.id,{pointId:t.value}).then(function(){toast("Point brother set");});
   else if(c==="imp-map"){var i=+t.dataset.i;var v=t.value;if(v&&v!=="_skip"){ui.imp.map=ui.imp.map.map(function(x,j){return x===v&&j!==i?"":x;});}ui.imp.map[i]=v;render();}
   else if(c==="imp-update"){ui.imp.updateDupes=t.checked;render();}
+  else if(c==="mode"){var pt={};pt[t.dataset.k]=t.checked;db.doc("config/main").update(pt).catch(function(){return db.doc("config/main").set(Object.assign({},S.config,pt));}).then(function(){toast((t.dataset.k==="breakMode"?"Break mode ":"Christmas card mode ")+(t.checked?"on":"off"));},function(){toast("Couldn’t save. Only coordinators can change this.");});}
+  else if(c==="round-who"){var rd=S.rounds.get(t.dataset.r);if(rd){var a2=Object.assign({},rd.assign||{});if(t.value)a2[t.dataset.id]=t.value;else delete a2[t.dataset.id];updDoc("rounds/"+rd.id,{assign:a2}).catch(function(){toast("Couldn’t save");});}}
+  else if(c==="cf-signer"){ui.cfs=t.value;render();}
+  else if(c==="cp-one"&&ui.modal&&ui.modal.sel){if(t.checked)ui.modal.sel[t.dataset.id]=1;else delete ui.modal.sel[t.dataset.id];var sb=document.querySelector('[data-a="cp-save"]');if(sb)sb.textContent="Save · "+Object.keys(ui.modal.sel).length+" getting a card";}
+  else if(c==="card-elig"){var ce=t.checked;cardSave(t.dataset.id,{eligible:ce}).then(function(){toast(ce?"🎄 He’s on the card list":"Taken off the card list");},function(){toast("Couldn’t save");});}
   else if(c==="wb-bro"&&ui.wbk){ui.wbk.bmap[t.dataset.k]=t.value;render();}
   else if(c==="wb-over"&&ui.imp){ui.imp.overwrite=t.checked;render();}
   else if(c==="imp-mode"){ui.imp.updateDupes=t.value==="fill";ui.imp.overwrite=t.value==="update";render();}
@@ -1977,6 +2219,7 @@ document.addEventListener("submit",function(e){
       var l=lunchId&&S.lunches.get(lunchId);
       if(l&&l.status==="planned")updDoc("lunches/"+lunchId,{status:"done",doneAt:Date.now()});
       if(rating&&rating<=2&&lowTo().length){ui.modal={type:"lowint",rid:f.dataset.rid,rating:rating,text:text};toast("Note saved");render();return;}
+      if(ui.modal&&ui.modal.type==="callnote")ui.modal=null;
       toast("Note saved");render();
     },done);
   } else if(kind==="rushee"){
@@ -2050,6 +2293,23 @@ document.addEventListener("submit",function(e){
   } else if(kind==="avoid"){
     var av=String(fd.get("avoid")||"").trim().slice(0,300);
     updDoc("rushees/"+f.dataset.id,{avoid:av}).then(function(){toast(av?"Saved":"Cleared");done();},done);
+  } else if(kind==="roundnew"){
+    var rnm=String(fd.get("name")||"").trim()||"Holiday text";var rid0=newId("rd");
+    setDoc("rounds/"+rid0,{name:rnm,kind:"text",msg:String(fd.get("msg")||""),assign:{},createdAt:Date.now(),createdBy:t?t.id:"",closed:false}).then(function(){ui.modal=null;location.hash="round:"+rid0;},done);
+  } else if(kind==="roundmsg"){
+    updDoc("rounds/"+f.dataset.id,{msg:String(fd.get("msg")||"")}).then(function(){toast("Message saved");done();},done);
+  } else if(kind==="calllog"){
+    var cn=norm(fd.get("rushee"));var cx=arr(S.rushees).find(function(x){return norm(x.name)===cn;});
+    if(!cx){toast("Pick a guy from the list");done();return;}
+    var oc=String(fd.get("outcome")||"talked");var cr0=curCallRound();
+    var after=function(){if(oc==="talked"){ui.modal={type:"callnote",id:cx.id};}else if(oc==="texted"){ui.modal={type:"roundtext",r:cr0?cr0.id:"",id:cx.id,call:true};}else{ui.modal=null;toast("Saved");}render();};
+    if(cr0&&!sendOf(cr0,cx.id))markSend(cr0,cx.id,oc).then(after,done);else{logReach(cx.id,oc==="texted"?"text":"call");after();}
+  } else if(kind==="cardedit"){
+    var cid=f.dataset.id;var at=String(fd.get("address")||"").trim();var t1=myTeam();var cp={addressed:!!fd.get("addressed")};
+    if(isCoord()){cp.sent=!!fd.get("sent");cp.received=!!fd.get("received");cp.signers=fd.getAll("signer");}
+    cp.hasAddress=!!at;
+    var pa=at!==addrOf(cid)?(at?setDoc("addresses/"+cid,{rusheeId:cid,text:at,by:t1?t1.id:"",at:Date.now()}):delDoc("addresses/"+cid)):Promise.resolve();
+    pa.then(function(){return cardSave(cid,cp);}).then(function(){ui.modal=null;render();toast("Saved");},function(){toast("Couldn’t save");done();});
   } else if(kind==="planown"){
     var pn0=norm(fd.get("rushee"));var px=arr(S.rushees).find(function(x){return norm(x.name)===pn0;});
     if(!px){toast("Pick a guy from the list. If he's new, use Suggest a new PNM first.");done();return;}
@@ -2148,7 +2408,7 @@ function runExport(btn){
   if(!dlApi){toast("Downloads aren't available here");return;}
   btn.disabled=true;toast("Gathering everything…");
   var out={format:"byx-rush-export",version:1,exportedAt:new Date().toISOString(),config:Object.assign({},S.config),collections:{}};
-  ["rushees","team","lunches","notes","events","checkins","reachouts","submissions"].forEach(function(n){out.collections[n]=arr(S[n]).map(function(d){return JSON.parse(JSON.stringify(d));});});
+  ["rushees","team","lunches","notes","events","checkins","reachouts","submissions","rounds","sends","cards","addresses"].forEach(function(n){out.collections[n]=arr(S[n]).map(function(d){return JSON.parse(JSON.stringify(d));});});
   var toData=function(id){return fetch("/_blob/"+id).then(function(r){if(!r.ok)throw new Error("photo");return r.blob();}).then(function(b){return new Promise(function(res,rej){
     var url=URL.createObjectURL(b);var img=new Image();
     img.onload=function(){var max=400,w=img.naturalWidth,h=img.naturalHeight,sc=Math.min(1,max/Math.max(w,h));var c=document.createElement("canvas");c.width=Math.round(w*sc);c.height=Math.round(h*sc);c.getContext("2d").drawImage(img,0,0,c.width,c.height);URL.revokeObjectURL(url);res(c.toDataURL("image/jpeg",0.8));};
@@ -2275,7 +2535,7 @@ function boot(){
   var owners=(window.BYX_OWNERS||[]).map(function(x){return String(x).toLowerCase();});
   firebase.auth().onAuthStateChanged(function(u){
     unsubs.forEach(function(f){try{f();}catch(e){}});unsubs=[];db=null;readOnly=false;
-    ["rushees","team","lunches","notes","events","checkins","reachouts","submissions"].forEach(function(n){S[n]=new Map();S.loaded[n]=false;});S.knows=new Map();
+    ["rushees","team","lunches","notes","events","checkins","reachouts","submissions"].forEach(function(n){S[n]=new Map();S.loaded[n]=false;});S.knows=new Map();S.rounds=new Map();S.sends=new Map();S.cards=new Map();S.addresses=new Map();
     if(!u){me={};status="signin";render();return;}
     if(!u.emailVerified){me={id:u.uid,email:String(u.email||"").toLowerCase()};status="verify";render();return;}
     me={id:u.uid,email:String(u.email||"").toLowerCase(),isOwner:false,canWrite:true,viewer:false,role:"",preview:null,real:null};S.viewers=null;S.viewersLoaded=false;
@@ -2300,6 +2560,9 @@ function boot(){
       });
       var kq=(me.isOwner||me.role==="coordinator")?fs.collection("knows"):(me.role==="member"?fs.collection("knows").where("uid","==",me.id):null);
       if(kq)unsubs.push(kq.onSnapshot(function(snap){var m=new Map();snap.docs.forEach(function(d){m.set(d.id,Object.assign({},d.data(),{id:d.id}));});S.knows=m;scheduleRender();},function(){S.knows=new Map();}));
+      ["rounds","sends","cards"].concat(me.viewer?[]:["addresses"]).forEach(function(name){
+        unsubs.push(fs.collection(name).onSnapshot(function(snap){var m=new Map();snap.docs.forEach(function(d){m.set(d.id,Object.assign({},d.data(),{id:d.id}));});S[name]=m;S.loaded[name]=true;scheduleRender();},function(){S[name]=new Map();}));
+      });
       unsubs.push(fs.doc("config/main").onSnapshot(function(s){if(s.exists)S.config=Object.assign({},S.config,s.data());scheduleRender();},fail));
     },fail);
   });
