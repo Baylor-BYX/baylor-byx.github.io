@@ -316,13 +316,14 @@ var STAGE={}; STAGES.forEach(function(s){STAGE[s[0]]={k:s[0],l:s[1],c:s[2],f:s[3
 var ACTIVE=function(r){return r.stage!=="dropped"&&r.stage!=="accepted";};
 var KINDS=["Lunch","Coffee","Dinner","Hangout","Event"];
 var ROLES={coordinator:"Coordinator",member:"Rush team"};
+function fname(r){return r?String(r.nickname||String(r.name||"").split(" ")[0]).trim():"";}
 var FIELDS=[
-  ["name","Full name"],["first","First name"],["last","Last name"],["phone","Phone"],["email","Email"],["year","Year"],
+  ["name","Full name"],["nickname","Goes by"],["first","First name"],["last","Last name"],["phone","Phone"],["email","Email"],["year","Year"],
   ["major","Major"],["hometown","Hometown"],["dorm","Dorm"],["insta","Instagram"],["church","Church"],
   ["referredBy","Referred by / met through"],["interests","Interests / notes"]
 ];
 var HEADER_GUESS={
-  name:["name","fullname","rushee","pnm","potentialnewmember","guy"],first:["first","firstname","fname"],last:["last","lastname","lname","surname"],
+  name:["name","fullname","rushee","pnm","potentialnewmember","guy"],nickname:["nickname","goesby","nick","prefers","preferredname"],first:["first","firstname","fname"],last:["last","lastname","lname","surname"],
   phone:["phone","phonenumber","cell","cellphone","mobile","number","phone#"],email:["email","emailaddress","baylor email"],
   year:["year","class","classification","grade","classyear","gradyear"],major:["major","majors","degree"],
   hometown:["hometown","home","city","from","homecity"],dorm:["dorm","residencehall","hall","housing","residence"],
@@ -397,7 +398,7 @@ function lowList(){var cut=Date.now()-21*86400000;return arr(S.notes).filter(fun
 function coordinators(){return arr(S.team).filter(function(t){return t.role==="coordinator";});}
 function extGroup(phones,msg,label){var ns=phones.map(normPhone).filter(Boolean);if(!ns.length)return "";return smsHref(ns,msg);}
 function inviteMsg(e,rid){var r=S.rushees.get(rid);var t=myTeam();
-  return "Hey "+(r?r.name.split(" ")[0]:"")+"! This is "+(t?t.name.split(" ")[0]:"")+" with BYX. We're having "+e.name+" "+whenPhrase(e.date,e.time,e.place)+". We'd love for you to come, and bring any guys you know!";}
+  return "Hey "+(r?fname(r):"")+"! This is "+(t?t.name.split(" ")[0]:"")+" with BYX. We're having "+e.name+" "+whenPhrase(e.date,e.time,e.place)+". We'd love for you to come, and bring any guys you know!";}
 function avatarHTML(r,big){var st=big?' style="width:56px;height:56px;font-size:20px;border-radius:14px"':'';
   if(r&&r.photoData&&/^data:image\//.test(r.photoData))return '<span class="avatar"'+st+'><img src="'+esc(r.photoData)+'" alt="" loading="lazy"></span>';
   return '<span class="avatar"'+st+'>'+esc(initials(r?r.name:"?"))+'</span>';}
@@ -412,7 +413,7 @@ function lunchMsg(l,tid){
   var t=S.team.get(tid);var first=t?t.name.split(" ")[0]:"";
   var who=(l.rusheeIds||[]).map(rName).join(" and ")||"a rushee";
   var r=(l.rusheeIds||[]).map(function(id){return S.rushees.get(id);}).filter(Boolean);
-  var nums=r.filter(function(x){return x.phone;}).map(function(x){return x.name.split(" ")[0]+": "+x.phone;}).join(", ");
+  var nums=r.filter(function(x){return x.phone;}).map(function(x){return fname(x)+": "+x.phone;}).join(", ");
   var when=l.date?" "+whenPhrase(l.date,l.time,l.place):" this week";
   return "Hey "+first+"! You're assigned to take "+who+" to "+(l.kind||"lunch").toLowerCase()+when+"."+(nums?" His number: "+nums+".":"")+(l.date?"":" Reach out, set a time, and log it in the BYX Rush Portal.")+" Thanks brother!";
 }
@@ -426,13 +427,13 @@ var RTEMPLATES=[
 ];
 function rusheeMsg(l,rid,v){
   var r=S.rushees.get(rid);var me_=myTeam();
-  return RTEMPLATES[v||0].fn(r?r.name.split(" ")[0]:"",me_?me_.name.split(" ")[0]:"");
+  return RTEMPLATES[v||0].fn(r?fname(r):"",me_?me_.name.split(" ")[0]:"");
 }
 function msgArea(msg,phone){var n=normPhone(phone);return '<textarea class="msgedit" rows="4" aria-label="Message" data-n="'+esc(n)+'" data-pre="'+esc(phone?String(phone)+"\n":"")+'">'+esc(msg)+'</textarea>';}
 function msgAreaMulti(msg,phones){var ns=phones.map(normPhone).filter(Boolean);return '<textarea class="msgedit" rows="4" aria-label="Message" data-n="'+esc(ns.join(","))+'" data-pre="'+esc(phones.filter(Boolean).join(", ")+(phones.filter(Boolean).length?"\n":""))+'">'+esc(msg)+'</textarea>';}
 var EDITHINT='<p class="small muted" style="margin:0">Tap the message to change it or write your own.</p>';
 function rusheeTextBtn(l,rid){
-  var r=S.rushees.get(rid);if(!r)return "";var first=esc(r.name.split(" ")[0]);var ph=normPhone(r.phone);
+  var r=S.rushees.get(rid);if(!r)return "";var first=esc(fname(r));var ph=normPhone(r.phone);
   if(ph)return '<button class="btn sm '+(l.reachedOut?"":"primary")+'" data-a="rtext" data-l="'+esc(l.id)+'" data-p="'+esc(rid)+'">'+(l.reachedOut?"Text "+first+" again":"Text "+first)+'</button>';
   if(String(r.phone||"").indexOf("@")===0)return '<span class="tag" title="Instagram">IG '+esc(r.phone)+'</span>';
   return '<span class="tag">No number for '+first+'</span>';
@@ -589,12 +590,21 @@ function icsHref(l){
     "SUMMARY:"+esc2((l.kind||"Lunch")+" with "+who),"LOCATION:"+esc2(l.place||""),"DESCRIPTION:"+esc2("BYX rush "+(l.kind||"lunch").toLowerCase()+". Write your note in the Rush Portal after."),"BEGIN:VALARM","TRIGGER:-PT1H","ACTION:DISPLAY","DESCRIPTION:Rush lunch in an hour","END:VALARM","END:VEVENT","END:VCALENDAR"].join("\r\n");
   return "data:text/calendar;charset=utf-8,"+encodeURIComponent(ics);
 }
-var MATCH_FIELDS=[["hometown","from"],["major","both study"],["church","both go to"]];
+var MATCH_FIELDS=[["hometown","from"],["major","both study"],["church","both go to"],["dorm","both in"]];
 function matchWhy(tm,r){
   if(!tm||!r)return "";var out=[];
   MATCH_FIELDS.forEach(function(f){var a=norm(tm[f[0]]||""),b=norm(r[f[0]]||"");if(a&&b&&(a===b||(a.length>3&&b.indexOf(a)>=0)||(b.length>3&&a.indexOf(b)>=0)))out.push(f[1]+" "+(r[f[0]]||tm[f[0]]));});
+  var ri=norm([r.interests,(r.tags||[]).join(" "),r.extra?Object.keys(r.extra).map(function(k){return r.extra[k];}).join(" "):""].join(" "));
+  if(ri)String(tm.interests||"").split(/,|;|\band\b|\n/).map(function(x){return x.trim();}).filter(function(x){return norm(x).length>=4;}).forEach(function(x){if(ri.indexOf(norm(x))>=0&&out.length<4)out.push("both into "+x.toLowerCase());});
   return out.join(", ");
 }
+var ME_FIELDS=[["hometown","Hometown","San Antonio, TX"],["major","Major","Finance"],["year","Year","Junior"],["church","Church","Antioch"],["dorm","Dorm or where you live","Penland, off campus…"],["interests","Things you’re into","Hunting, golf, worship music, Spurs"]];
+function aboutMeHTML(t){
+  var filled=ME_FIELDS.filter(function(f){return String(t[f[0]]||"").trim();}).length;var open=ui.meEdit||filled<3;
+  if(!open)return '<section class="section"><div class="spread"><h3>About you</h3><button class="btn sm ghost" data-a="me-edit">Edit</button></div><div class="small muted">'+esc(ME_FIELDS.map(function(f){return t[f[0]];}).filter(Boolean).join(" · "))+'</div></section>';
+  return '<form class="section" data-form="aboutme" style="'+(filled<3?'border:2px solid var(--purple);border-radius:14px;padding:14px':'')+'"><h3>About you</h3><p class="small muted" style="margin:0">Fill this in so Jonah and Clark can pair you with guys you have something in common with.</p>'+
+    '<div class="fields">'+ME_FIELDS.map(function(f){return '<div class="field"'+(f[0]==="interests"?' style="grid-column:1/-1"':'')+'><label for="am-'+f[0]+'">'+f[1]+'</label><input type="text" id="am-'+f[0]+'" name="'+f[0]+'" value="'+esc(t[f[0]]||"")+'" placeholder="'+esc(f[2])+'" maxlength="'+(f[0]==="interests"?200:80)+'"></div>';}).join("")+'</div>'+
+    '<div class="small muted">Separate things you’re into with commas.</div><div class="row"><button class="btn primary" type="submit">Save</button>'+(filled>=3?'<button type="button" class="btn ghost" data-a="me-edit-done">Cancel</button>':'')+'</div></form>';}
 function oldNotes(){
   return arr(S.notes).filter(function(n){if(!n.teamId)return false;var tm=S.team.get(n.teamId);return tm&&tm.uid&&n.uid!==tm.uid;});
 }
@@ -715,7 +725,10 @@ function lunchCard(l,opts){
     if(!l.date){
       actions+=(l.rusheeIds||[]).map(function(rid){return rusheeTextBtn(l,rid);}).join("");
       if(l.reachedOut)actions+=(l.rusheeIds||[]).map(function(rid){var rr=S.rushees.get(rid);if(!rr)return "";var since=l.reachedAt||l.createdAt||0;
-        return (rr.lastReplyAt||0)>since?'<span class="tag" style="color:var(--good)">'+esc(rr.name.split(" ")[0])+' replied ✓</span>':'<button class="btn sm ghost" data-a="replied" data-id="'+esc(rid)+'" data-l="'+esc(l.id)+'">He replied</button>';}).join("");
+        if((rr.lastReplyAt||0)>since)return '<span class="tag" style="color:var(--good)">'+esc(fname(rr))+' replied ✓</span>';
+        var fu=(l.followups||{})[rid];
+        return '<button class="btn sm ghost" data-a="replied" data-id="'+esc(rid)+'" data-l="'+esc(l.id)+'">He replied</button>'+
+          (normPhone(rr.phone)?'<button class="btn sm'+(fu?' ghost':'')+'" data-a="fu-text" data-id="'+esc(rid)+'" data-l="'+esc(l.id)+'">'+(fu?'Followed up '+esc(ago(fu))+' · again':'No reply? Follow up')+'</button>':'');}).join("");
       actions+='<label class="btn sm ghost" style="cursor:pointer"><input type="checkbox" data-change="reached" data-id="'+esc(l.id)+'"'+(l.reachedOut?" checked":"")+' style="accent-color:var(--purple);margin:0"> Reached out</label>';
       if(l.reachedOut)sched='<div class="small" style="font-weight:600">Picked a time with him? Add it here:</div><form class="row" data-form="schedule" data-id="'+esc(l.id)+'" style="gap:8px"><input type="date" name="date" required aria-label="Date" style="flex:1;min-width:130px"><input type="time" name="time" aria-label="Time" style="flex:1;min-width:100px"><input type="text" name="place" placeholder="Where" aria-label="Where" style="flex:2;min-width:120px"><button class="btn sm primary" type="submit">Save rush date</button></form>';
     } else {
@@ -733,7 +746,7 @@ function lunchCard(l,opts){
     '<div class="names">'+(rs||'<span class="muted small">No rushee</span>')+'</div>'+
     (bs?'<div class="names"><span class="muted small" style="align-self:center">With</span>'+bs+'</div>':"")+
     (l.details?'<div class="small muted">'+esc(l.details)+'</div>':"")+
-    (l.status==="planned"?(l.rusheeIds||[]).map(function(rid){var rr=S.rushees.get(rid);return rr&&rr.avoid?'<div class="avoid"><b>⚠ Avoid with '+esc(rr.name.split(" ")[0])+':</b> '+esc(rr.avoid)+'</div>':"";}).join(""):"")+
+    (l.status==="planned"?(l.rusheeIds||[]).map(function(rid){var rr=S.rushees.get(rid);return rr&&rr.avoid?'<div class="avoid"><b>⚠ Avoid with '+esc(fname(rr))+':</b> '+esc(rr.avoid)+'</div>':"";}).join(""):"")+
     (actions?'<div class="row">'+actions+'</div>':"")+sched+'</div>';
 }
 function canSeeTies(){return !me.viewer&&(me.isOwner||isCoord());}
@@ -788,7 +801,7 @@ function rusheeItem(r){
   var ls_=lunchesFor(r.id).filter(function(l){return l.status!=="cancelled";}).length;var ns=notesFor(r.id).length;
   var sub=[r.year,r.major,r.hometown].filter(Boolean).join(" · ")||"No details yet";
   return '<button class="item" data-a="open-r" data-id="'+esc(r.id)+'">'+avatarHTML(r)+''+
-    '<span class="main"><b>'+esc(r.name)+'</b><small>'+esc(sub)+'</small>'+(canSeeTies()?(function(){var c=closestTag(r.id);return c?'<span class="tie-line">'+c+'</span>':'';})():'')+'</span>'+
+    '<span class="main"><b>'+esc(r.name)+(r.nickname?' <span class="muted" style="font-weight:600">“'+esc(r.nickname)+'”</span>':'')+'</b><small>'+esc(sub)+'</small>'+(canSeeTies()?(function(){var c=closestTag(r.id);return c?'<span class="tie-line">'+c+'</span>':'';})():'')+'</span>'+
     '<span class="side">'+pill(r.stage)+'<small class="muted small"><span class="num">'+ls_+'</span> lunch'+(ls_===1?"":"es")+' · <span class="num">'+ns+'</span> note'+(ns===1?"":"s")+' '+stars(avgRating(r.id))+'</small></span></button>';
 }
 function noteForm(id,rid,lunchId,label){
@@ -810,13 +823,14 @@ var TEXT_PRESETS=[
   ["schedule","Rush schedule","Hey {first}! Spring rush is almost here. Here's what's coming up:\n{events}\nLet me know if you have any questions!"],
   ["custom","","Hey {first}! "]
 ];
+var FU_MSG="Hey man! Just following up, would still love to schedule something with you!";
 var CALL_TEXT="Hey {first}! Tried to give you a call to see how break is going. Hope you're doing well, let me know if you want to catch up!";
 function upcomingEventsText(){
   var ev=arr(S.events).filter(function(e){return e.date&&e.date>=today();}).sort(function(a,b){return (a.date+(a.time||"")).localeCompare(b.date+(b.time||""));}).slice(0,8);
   return ev.map(function(e){var p=e.date.split("-");var d=new Date(+p[0],+p[1]-1,+p[2]).toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric"});
     return "• "+d+" · "+e.name+(e.time?" · "+shortTime(e.time):"")+(e.place?" · "+e.place:"");}).join("\n")||"(events coming soon)";}
 function fillMsg(tpl,rid,tid){var r=S.rushees.get(rid);var t=S.team.get(tid)||myTeam();var d=new Date();var yr=String(d.getMonth()>=10?d.getFullYear()+1:d.getFullYear());
-  return String(tpl||"").replace(/\{first\}/g,r?r.name.split(" ")[0]:"").replace(/\{me\}/g,t?t.name.split(" ")[0]:"").replace(/\{year\}/g,yr).replace(/\{events\}/g,function(){return upcomingEventsText();});}
+  return String(tpl||"").replace(/\{first\}/g,r?fname(r):"").replace(/\{me\}/g,t?t.name.split(" ")[0]:"").replace(/\{year\}/g,yr).replace(/\{events\}/g,function(){return upcomingEventsText();});}
 function roundActive(r){if(r.closed)return false;if(r.kind==="call")return r.week===weekOf(today());return Date.now()-(r.startAt||r.createdAt||0)<7*86400000;}
 function thanksgivingMonday(y){var d=new Date(y,10,1);var off=(4-d.getDay()+7)%7;return iso(new Date(y,10,1+off+21-3));}
 function ensureHolidayRounds(){
@@ -862,7 +876,7 @@ function myBreakHTML(t){
       :'<div class="empty">No calls assigned to you this week yet.</div>')+'</section>';}
   roundsOpen("text").forEach(function(rd){var mine=roundGuys().filter(function(r){return whoOf(rd,r.id)===t.id;});if(!mine.length)return;var left=mine.filter(function(r){return !sendOf(rd,r.id);});
     h+='<section class="section"><h3>'+esc(rd.name)+' <span class="badge" style="vertical-align:middle;background:'+(left.length?"":"var(--good)")+'">'+(mine.length-left.length)+'/'+mine.length+'</span></h3>'+
-      (left.length?'<div class="list">'+left.map(function(r){return '<div class="item" style="cursor:default"><span class="main"><b role="button" tabindex="0" data-a="open-r" data-id="'+esc(r.id)+'" style="cursor:pointer">'+esc(r.name)+'</b></span>'+(readOnly?'':'<span class="side row" style="gap:6px"><button class="btn sm primary" data-a="round-text" data-r="'+esc(rd.id)+'" data-id="'+esc(r.id)+'">Text '+esc(r.name.split(" ")[0])+'</button><button class="btn sm ghost" data-a="round-mark" data-r="'+esc(rd.id)+'" data-id="'+esc(r.id)+'">Mark sent</button></span>')+'</div>';}).join("")+'</div>':'<div class="small" style="color:var(--good)">All sent. Thanks brother!</div>')+'</section>';});
+      (left.length?'<div class="list">'+left.map(function(r){return '<div class="item" style="cursor:default"><span class="main"><b role="button" tabindex="0" data-a="open-r" data-id="'+esc(r.id)+'" style="cursor:pointer">'+esc(r.name)+'</b></span>'+(readOnly?'':'<span class="side row" style="gap:6px"><button class="btn sm primary" data-a="round-text" data-r="'+esc(rd.id)+'" data-id="'+esc(r.id)+'">Text '+esc(fname(r))+'</button><button class="btn sm ghost" data-a="round-mark" data-r="'+esc(rd.id)+'" data-id="'+esc(r.id)+'">Mark sent</button></span>')+'</div>';}).join("")+'</div>':'<div class="small" style="color:var(--good)">All sent. Thanks brother!</div>')+'</section>';});
   return h;}
 
 /* Coordinator side: switches + break on the Board */
@@ -966,6 +980,7 @@ function vMe(){
   else h+='<div class="tiles"><div class="tile'+(toSched.length?" alert":"")+'"><span class="num">'+toSched.length+'</span><span>To schedule</span></div><div class="tile"><span class="num">'+upcoming.length+'</span><span>Scheduled</span></div>'+
      '<div class="tile'+(owed.length?" alert":"")+'"><span class="num">'+owed.length+'</span><span>Notes you owe</span></div>'+
      '<div class="tile"><span class="num">'+myR.length+'</span><span>Your guys</span></div></div>';
+  if(!readOnly&&!me.viewer)h+=aboutMeHTML(t);
   if(cardsOn())h+='<a class="item" href="#cards" style="border:1px solid var(--line);border-radius:12px"><span class="main"><b>🎄 Christmas cards</b><small>'+(function(){var c=cardGuys().filter(function(r){var x=cardOf(r.id);return (x.signers||[]).indexOf(t.id)>=0&&(x.signedBy||[]).indexOf(t.id)<0;}).length;return c?c+" card"+(c===1?"":"s")+" for you to sign":"Sign cards, add addresses";})()+'</small></span><span class="side">›</span></a>';
   if(breakOn()){h+=myBreakHTML(t);if(!readOnly)h+='<div class="row"><button class="btn primary" data-a="call-log">+ Log a call</button></div>';}
   if(!readOnly)h+='<div class="row"><button class="btn'+(breakOn()?'':' primary')+'" data-a="plan-own">+ Plan a lunch</button><button class="btn" data-a="sub-lunch">+ Log a lunch I went on</button><button class="btn" data-a="sub-pnm">+ Suggest a new PNM</button>'+(myR.length?'<button class="btn ghost" data-a="save-contacts-mine">Save my guys to contacts</button>':'')+'</div>';
@@ -1077,7 +1092,7 @@ function filteredRushees(){
     else if(ui.stage!=="all"&&(r.stage||"new")!==ui.stage)return false;
     if(ui.tag&&(r.tags||[]).indexOf(ui.tag)<0)return false;
     if(!q)return true;
-    return norm([r.name,r.major,r.hometown,r.year,r.referredBy,r.church,r.dorm,r.interests,r.avoid,(r.tags||[]).join(" "),r.extra?Object.keys(r.extra).map(function(k){return r.extra[k];}).join(" "):"",noteText[r.id]||""].join(" ")).indexOf(q)>=0;
+    return norm([r.name,r.nickname,r.major,r.hometown,r.year,r.referredBy,r.church,r.dorm,r.interests,r.avoid,(r.tags||[]).join(" "),r.extra?Object.keys(r.extra).map(function(k){return r.extra[k];}).join(" "):"",noteText[r.id]||""].join(" ")).indexOf(q)>=0;
   }).sort(byName);
 }
 function rusheeListHTML(){var l=filteredRushees();var np=l.filter(function(r){return normPhone(r.phone);}).length;
@@ -1210,7 +1225,7 @@ function renderGfx(){
 }
 function gfxFile(){var c=ui.gfx.canvas;var e=S.events.get(ui.gfx.e)||{};var name=String(e.name||"event").replace(/[^a-z0-9]+/gi,"-").toLowerCase()+"-"+ui.gfx.s+".png";
   return new Promise(function(res){c.toBlob(function(b){res(new File([b],name,{type:"image/png"}));},"image/png");});}
-function followMsg(e,rid,came){var r=S.rushees.get(rid);var t=myTeam();var f=r?r.name.split(" ")[0]:"";var me1=t?t.name.split(" ")[0]:"";
+function followMsg(e,rid,came){var r=S.rushees.get(rid);var t=myTeam();var f=r?fname(r):"";var me1=t?t.name.split(" ")[0]:"";
   return came?"Hey "+f+"! This is "+me1+" with BYX. Great to see you at "+e.name+"! Want to grab lunch or coffee this week?"
     :"Hey "+f+"! This is "+me1+" with BYX. We missed you at "+e.name+"! Would love to grab lunch or coffee this week if you're free. Bring any guys you know to the next one!";}
 function followupHTML(e){
@@ -1692,7 +1707,7 @@ function drawerHTML(){
   var extra=r.extra||{};Object.keys(extra).forEach(function(k){if(extra[k])kv.push([k,extra[k]]);});
   var h='<div class="scrim" data-a="close-drawer"><aside class="drawer" data-stop="1" aria-label="Rushee profile"'+(readOnly?'':' data-drop="'+esc(r.id)+'"')+'>'+
     '<div class="spread"><button class="btn sm ghost" data-a="close-drawer">← Back</button>'+(coord?'<div class="row"><button class="btn sm" data-a="edit-r" data-id="'+esc(r.id)+'">Edit</button></div>':"")+'</div>'+
-    '<div class="row">'+(r.photoData?'<button class="photo-btn" data-a="photo-view" data-id="'+esc(r.id)+'" aria-label="See '+esc(r.name)+'’s photo larger">'+avatarHTML(r,true)+'</button>':avatarHTML(r,true))+'<div style="min-width:0"><h2 style="font-size:24px">'+esc(r.name)+'</h2><div class="row" style="gap:8px;margin-top:4px">'+pill(r.stage)+(avg!=null?'<span class="small muted">Team interest '+stars(avg)+' <span class="num">'+avg.toFixed(1)+'</span></span>':"")+'</div></div></div>';
+    '<div class="row">'+(r.photoData?'<button class="photo-btn" data-a="photo-view" data-id="'+esc(r.id)+'" aria-label="See '+esc(r.name)+'’s photo larger">'+avatarHTML(r,true)+'</button>':avatarHTML(r,true))+'<div style="min-width:0"><h2 style="font-size:24px">'+esc(r.name)+'</h2>'+(r.nickname?'<div class="small">Goes by <b>'+esc(r.nickname)+'</b></div>':'')+'<div class="row" style="gap:8px;margin-top:4px">'+pill(r.stage)+(avg!=null?'<span class="small muted">Team interest '+stars(avg)+' <span class="num">'+avg.toFixed(1)+'</span></span>':"")+'</div></div></div>';
   if(coord){
     h+='<div class="fields"><div class="field"><label for="d-stage">Stage</label><select id="d-stage" data-change="stage" data-id="'+esc(r.id)+'">'+STAGES.map(function(s){return '<option value="'+s[0]+'"'+((r.stage||"new")===s[0]?" selected":"")+'>'+s[1]+'</option>';}).join("")+'</select></div>'+
        '<div class="field"><label for="d-point">Point brother</label><select id="d-point" data-change="point" data-id="'+esc(r.id)+'"><option value="">None</option>'+arr(S.team).sort(byName).map(function(t){return '<option value="'+esc(t.id)+'"'+(r.pointId===t.id?" selected":"")+'>'+esc(t.name)+'</option>';}).join("")+'</select></div></div>';
@@ -1712,6 +1727,7 @@ function drawerHTML(){
     (ps.unanswered>=2?'<span class="sc warn">No reply to last '+ps.unanswered+'</span>':ps.lastReply?'<span class="sc good">Replied '+esc(ago(ps.lastReply))+'</span>':'')+
     '<span class="sc">'+ps.attended+' event'+(ps.attended===1?"":"s")+'</span>'+(ps.invited?'<span class="sc">Invited to '+ps.invited+'</span>':'')+'</div>';
   if(canTag&&ps.texts&&(r.lastReplyAt||0)<ps.last)h+='<div><button class="btn sm ghost" data-a="replied" data-id="'+esc(r.id)+'">He replied</button></div>';
+  if(canTag)h+='<form class="inline-add" data-form="nick" data-id="'+esc(r.id)+'"><input type="text" name="nickname" value="'+esc(r.nickname||"")+'" placeholder="Goes by… (e.g. Jake, JT)" aria-label="Nickname" maxlength="40"><button class="btn sm" type="submit">Save</button></form>';
   h+='<section class="section"><h3>Topics to avoid</h3>'+(r.avoid?'<div class="avoid"><b>⚠ Avoid:</b> '+esc(r.avoid)+'</div>':'<div class="small muted">Nothing noted.</div>')+
     (canTag?'<form class="inline-add" data-form="avoid" data-id="'+esc(r.id)+'"><input type="text" name="avoid" value="'+esc(r.avoid||"")+'" placeholder="e.g. his parents\' divorce, the frat he was cut from" aria-label="Topics to avoid" maxlength="300"><button class="btn sm" type="submit">Save</button></form>':'')+'</section>';
   h+='<section class="section"><h3>Tags</h3><div class="chips">'+(r.tags||[]).map(function(t){return '<span class="chip tagc">#'+esc(t)+(canTag?'<button data-a="tag-del" data-id="'+esc(r.id)+'" data-v="'+esc(t)+'" aria-label="Remove tag '+esc(t)+'">×</button>':'<span style="width:6px"></span>')+'</span>';}).join("")+
@@ -1772,7 +1788,7 @@ function modalHTML(){
       '<div class="field"><label for="l-details">Details for the brothers</label><textarea id="l-details" name="details" style="min-height:60px" placeholder="Who\'s driving, meal swipes, what to ask about…">'+esc(l.details||"")+'</textarea></div>'+
       '<div class="spread">'+(m.id?'<button type="button" class="btn danger ghost" data-a="del-l" data-id="'+esc(m.id)+'">Delete lunch</button>':'<span></span>')+'<button class="btn primary" type="submit">Save</button></div></form>';
   } else if(m.type==="rtext"){
-    var Lr=S.lunches.get(m.l)||{id:m.l};var rr=S.rushees.get(m.p);var rf=rr?rr.name.split(" ")[0]:"";
+    var Lr=S.lunches.get(m.l)||{id:m.l};var rr=S.rushees.get(m.p);var rf=rr?fname(rr):"";
     h+='<div class="section"><div class="spread"><h2>Text '+esc(rf)+'</h2><button type="button" class="btn sm ghost" data-a="close-modal">Cancel</button></div>'+
       '<p class="muted small" style="margin:0">Pick a message, change it, or write your own. It opens in Messages ready to send, and Reached out gets checked off.</p>'+(rr&&rr.avoid?'<div class="avoid"><b>⚠ Avoid:</b> '+esc(rr.avoid)+'</div>':'')+
       RTEMPLATES.map(function(tp,v){var msg=rusheeMsg(Lr,m.p,v);var ex=rr?extText(rr.phone,msg,rf):"";
@@ -1789,7 +1805,7 @@ function modalHTML(){
     if(m.k==="bro"){person=S.team.get(m.p);msg=person?lunchMsg(Ls,m.p):"";}else{person=S.rushees.get(m.p);msg=person?rusheeMsg(Ls,m.p):"";}
     phone=person?String(person.phone||"").replace(/[\u200e\u200f\u202a-\u202e]/g,"").trim():"";
     var phn=normPhone(phone);
-    h+='<div class="section"><div class="spread"><h2>Text '+esc(person?person.name.split(" ")[0]:"")+'</h2><button type="button" class="btn sm ghost" data-a="close-modal">Done</button></div>'+
+    h+='<div class="section"><div class="spread"><h2>Text '+esc(person?fname(person):"")+'</h2><button type="button" class="btn sm ghost" data-a="close-modal">Done</button></div>'+
       '<div class="field"><label>Step 1: copy the message</label><textarea id="sms-msg" style="min-height:80px">'+esc(msg)+'</textarea><div class="row"><button class="btn primary" data-a="sms-copy" data-w="msg">Copy message</button></div></div>'+
       '<div class="field"><label>Step 2: text it to this number</label><div class="row"><span style="flex:1;font-size:20px;font-weight:700;font-family:var(--display);letter-spacing:.02em;user-select:all">'+esc(phone)+'</span><button class="btn" data-a="sms-copy" data-w="num">Copy number</button></div><input type="hidden" id="sms-num" value="'+esc(phone)+'"></div>'+
       '<p class="small muted" style="margin:0">Open Messages, start a text to that number, and paste.'+(m.k==="rushee"?' Reached out is checked off for you.':'')+'</p></div>';
@@ -1831,6 +1847,11 @@ function modalHTML(){
       '<a class="item calopt" href="'+esc(ci.google)+'" target="_blank" rel="noopener"><span class="main"><b>Google Calendar</b><small>Opens with the lunch filled in.</small></span></a>'+
       '<a class="item calopt" href="'+esc(ci.outlook)+'" target="_blank" rel="noopener"><span class="main"><b>Outlook</b><small>For your Baylor calendar.</small></span></a></div>'+
       '<p class="small muted" style="margin:0">Apple Calendar not opening from the home-screen app? Open baylor-byx.github.io in Safari and try again there.</p>':'<div class="empty">This lunch has no date yet.</div>')+'</div>';
+  } else if(m.type==="futext"){
+    var FR=S.rushees.get(m.id);var fmsg2=FU_MSG;var fx2=FR?extText(FR.phone,fmsg2,fname(FR)):"";
+    h+='<div class="section"><div class="spread"><h2>Follow up with '+esc(fname(FR))+'</h2><button type="button" class="btn sm ghost" data-a="close-modal">Cancel</button></div>'+(FR&&FR.avoid?'<div class="avoid"><b>⚠ Avoid:</b> '+esc(FR.avoid)+'</div>':'')+
+      msgArea(fmsg2,FR?FR.phone:"")+EDITHINT+'<div class="row">'+(fx2?'<a class="btn primary" href="'+esc(fx2)+'" data-a="fu-sent" data-id="'+esc(m.id)+'" data-l="'+esc(m.l)+'">Text '+esc(fname(FR))+'</a>':'')+
+      '<button class="btn'+(fx2?' ghost':' primary')+'" data-a="copy-raw" data-v="'+esc((FR&&FR.phone?FR.phone+"\n":"")+fmsg2)+'">Copy</button></div></div>';
   } else if(m.type==="roundnew"){
     var pr=TEXT_PRESETS.find(function(x){return x[0]===(m.preset||"thanksgiving");})||TEXT_PRESETS[0];
     h+='<form class="section" data-form="roundnew"><div class="spread"><h2>New holiday text</h2><button type="button" class="btn sm ghost" data-a="close-modal">Cancel</button></div>'+
@@ -1839,22 +1860,22 @@ function modalHTML(){
       '<div class="field"><label for="rn-m">Message</label><textarea id="rn-m" name="msg" style="min-height:110px">'+esc(pr[2])+'</textarea><div class="small muted">{first} becomes his first name. {events} becomes the upcoming events from the Events tab. Brothers can still edit each text before sending.</div></div>'+
       '<div class="row"><button class="btn primary" type="submit">Create</button></div><p class="small muted" style="margin:0">Goes to every active guy. You assign who texts whom on the next screen, or tap Auto-assign.</p></form>';
   } else if(m.type==="roundtext"){
-    var RD=S.rounds.get(m.r)||{};var RR=S.rushees.get(m.id);var rmsg=RR?fillMsg(m.call?CALL_TEXT:RD.msg,m.id):"";var rx=RR?extText(RR.phone,rmsg,RR.name.split(" ")[0]):"";
-    h+='<div class="section"><div class="spread"><h2>Text '+esc(RR?RR.name.split(" ")[0]:"")+'</h2><button type="button" class="btn sm ghost" data-a="close-modal">Cancel</button></div>'+(RR&&RR.avoid?'<div class="avoid"><b>⚠ Avoid:</b> '+esc(RR.avoid)+'</div>':'')+
-      msgArea(rmsg,RR?RR.phone:"")+EDITHINT+'<div class="row">'+(rx?'<a class="btn primary" href="'+esc(rx)+'" data-a="round-sent" data-r="'+esc(m.r)+'" data-id="'+esc(m.id)+'" data-v="'+(m.call?"texted":"sent")+'">Text '+esc(RR.name.split(" ")[0])+'</a>':'')+
+    var RD=S.rounds.get(m.r)||{};var RR=S.rushees.get(m.id);var rmsg=RR?fillMsg(m.call?CALL_TEXT:RD.msg,m.id):"";var rx=RR?extText(RR.phone,rmsg,fname(RR)):"";
+    h+='<div class="section"><div class="spread"><h2>Text '+esc(RR?fname(RR):"")+'</h2><button type="button" class="btn sm ghost" data-a="close-modal">Cancel</button></div>'+(RR&&RR.avoid?'<div class="avoid"><b>⚠ Avoid:</b> '+esc(RR.avoid)+'</div>':'')+
+      msgArea(rmsg,RR?RR.phone:"")+EDITHINT+'<div class="row">'+(rx?'<a class="btn primary" href="'+esc(rx)+'" data-a="round-sent" data-r="'+esc(m.r)+'" data-id="'+esc(m.id)+'" data-v="'+(m.call?"texted":"sent")+'">Text '+esc(fname(RR))+'</a>':'')+
       '<button class="btn'+(rx?' ghost':' primary')+'" data-a="copy-raw" data-v="'+esc((RR&&RR.phone?RR.phone+"\n":"")+rmsg)+'">Copy</button></div><p class="small muted" style="margin:0">Sending checks him off.</p></div>';
   } else if(m.type==="callnote"){
     var CR=S.rushees.get(m.id);
-    h+='<div class="section"><div class="spread"><h2>Call with '+esc(CR?CR.name.split(" ")[0]:"")+' ✓</h2><button type="button" class="btn sm ghost" data-a="close-modal">Skip</button></div>'+noteForm("call-"+m.id,m.id,"","How did the call go?")+'</div>';
+    h+='<div class="section"><div class="spread"><h2>Call with '+esc(CR?fname(CR):"")+' ✓</h2><button type="button" class="btn sm ghost" data-a="close-modal">Skip</button></div>'+noteForm("call-"+m.id,m.id,"","How did the call go?")+'</div>';
   } else if(m.type==="calllog"){
     h+='<form class="section" data-form="calllog"><div class="spread"><h2>Log a call</h2><button type="button" class="btn sm ghost" data-a="close-modal">Cancel</button></div>'+
       '<div class="field"><label for="cl-r">Who did you call? *</label><input type="text" id="cl-r" name="rushee" list="rlistall3" required placeholder="Start typing his name"><datalist id="rlistall3">'+arr(S.rushees).filter(ACTIVE).sort(byName).map(function(x){return '<option value="'+esc(x.name)+'">';}).join("")+'</datalist></div>'+
       '<div class="field"><label>How did it go?</label><div class="chips">'+[["talked","Talked"],["voicemail","Left a voicemail"],["texted","Texted instead"]].map(function(o,i){return '<label class="chip"><input type="radio" name="outcome" value="'+o[0]+'"'+(i?"":" checked")+'> '+o[1]+'</label>';}).join("")+'</div></div>'+
       '<div class="row"><button class="btn primary" type="submit">Save</button></div></form>';
   } else if(m.type==="cardask"){
-    var AR=S.rushees.get(m.id);var amsg=AR?fillMsg(ADDR_ASK,m.id):"";var ax=AR?extText(AR.phone,amsg,AR.name.split(" ")[0]):"";
-    h+='<div class="section"><div class="spread"><h2>'+esc(AR?AR.name.split(" ")[0]:"")+'’s address</h2><button type="button" class="btn sm ghost" data-a="close-modal">Cancel</button></div>'+
-      msgArea(amsg,AR?AR.phone:"")+EDITHINT+'<div class="row">'+(ax?'<a class="btn primary" href="'+esc(ax)+'" data-a="card-asked" data-id="'+esc(m.id)+'">Text '+esc(AR.name.split(" ")[0])+'</a>':'')+'<button class="btn'+(ax?' ghost':' primary')+'" data-a="copy-raw" data-v="'+esc((AR&&AR.phone?AR.phone+"\n":"")+amsg)+'">Copy</button></div>'+
+    var AR=S.rushees.get(m.id);var amsg=AR?fillMsg(ADDR_ASK,m.id):"";var ax=AR?extText(AR.phone,amsg,fname(AR)):"";
+    h+='<div class="section"><div class="spread"><h2>'+esc(AR?fname(AR):"")+'’s address</h2><button type="button" class="btn sm ghost" data-a="close-modal">Cancel</button></div>'+
+      msgArea(amsg,AR?AR.phone:"")+EDITHINT+'<div class="row">'+(ax?'<a class="btn primary" href="'+esc(ax)+'" data-a="card-asked" data-id="'+esc(m.id)+'">Text '+esc(fname(AR))+'</a>':'')+'<button class="btn'+(ax?' ghost':' primary')+'" data-a="copy-raw" data-v="'+esc((AR&&AR.phone?AR.phone+"\n":"")+amsg)+'">Copy</button></div>'+
       '<p class="small muted" style="margin:0">When he replies, tap Add address on his card and paste it in.</p></div>';
   } else if(m.type==="cardpick"){
     var q=norm(m.q||"");var sel=m.sel||(m.sel=(function(){var o={};arr(S.cards).forEach(function(c){if(c.eligible)o[c.id]=1;});return o;})());
@@ -1914,11 +1935,11 @@ function modalHTML(){
       (gx?'<a class="btn primary" href="'+esc(gx)+'" target="_blank" rel="noopener noreferrer">Group text '+esc(cs.map(function(c){return c.name.split(" ")[0];}).join(" & "))+'</a>':'')+
       '<button class="btn'+(gx?' ghost':' primary')+'" data-a="copy-raw" data-v="'+esc(cs.map(function(c){return c.phone;}).filter(Boolean).join(", ")+"\n"+m.msg)+'">Copy</button></div></div>';
   } else if(m.type==="evfollow"){
-    var E2=S.events.get(m.e)||{};var R2=S.rushees.get(m.r);var fmsg=R2?followMsg(E2,m.r,m.came):"";var fx=R2?extText(R2.phone,fmsg,R2.name.split(" ")[0]):"";
-    h+='<div class="section"><div class="spread"><h2>Follow up with '+esc(R2?R2.name.split(" ")[0]:"")+'</h2><button type="button" class="btn sm ghost" data-a="close-modal">Cancel</button></div>'+
+    var E2=S.events.get(m.e)||{};var R2=S.rushees.get(m.r);var fmsg=R2?followMsg(E2,m.r,m.came):"";var fx=R2?extText(R2.phone,fmsg,fname(R2)):"";
+    h+='<div class="section"><div class="spread"><h2>Follow up with '+esc(R2?fname(R2):"")+'</h2><button type="button" class="btn sm ghost" data-a="close-modal">Cancel</button></div>'+
       (R2&&R2.avoid?'<div class="avoid"><b>⚠ Avoid:</b> '+esc(R2.avoid)+'</div>':'')+
       msgArea(fmsg,R2?R2.phone:"")+EDITHINT+'<div class="row">'+
-      (fx?'<a class="btn primary" href="'+esc(fx)+'" data-a="ev-follow-sent" data-id="'+esc(m.r)+'">Text '+esc(R2.name.split(" ")[0])+'</a>':'')+
+      (fx?'<a class="btn primary" href="'+esc(fx)+'" data-a="ev-follow-sent" data-id="'+esc(m.r)+'">Text '+esc(fname(R2))+'</a>':'')+
       '<button class="btn'+(fx?' ghost':' primary')+'" data-a="copy-raw" data-v="'+esc((R2&&R2.phone?R2.phone+"\n":"")+fmsg)+'">Copy</button></div>'+
       '<p class="small muted" style="margin:0">Sending marks him as followed up by you.</p>'+(R2&&normPhone(R2.phone)?'<div class="row" style="justify-content:space-between;align-items:center"><span class="small muted">Save him so his texts show up as “'+esc(R2.name)+' · PNM.”</span><button class="btn sm" data-a="save-contact" data-id="'+esc(R2.id)+'">Save to contacts</button></div>':'')+'</div>';
   } else if(m.type==="evgraphic"){
@@ -1930,8 +1951,8 @@ function modalHTML(){
       '<div class="row"><button class="btn primary" data-a="gfx-share">Share</button><button class="btn" data-a="gfx-save">Save image</button></div>'+
       '<p class="small muted" style="margin:0">Share sends it to Messages, Instagram or Photos. On a computer, Save image downloads it.</p></div>';
   } else if(m.type==="evinvite"){
-    var E=S.events.get(m.e)||{};var R=S.rushees.get(m.r);var imsg=R?inviteMsg(E,m.r):"";var ix=R?extText(R.phone,imsg,R.name.split(" ")[0]):"";
-    h+='<div class="section"><div class="spread"><h2>Invite '+esc(R?R.name.split(" ")[0]:"")+'</h2><button type="button" class="btn sm ghost" data-a="close-modal">Cancel</button></div>'+
+    var E=S.events.get(m.e)||{};var R=S.rushees.get(m.r);var imsg=R?inviteMsg(E,m.r):"";var ix=R?extText(R.phone,imsg,fname(R)):"";
+    h+='<div class="section"><div class="spread"><h2>Invite '+esc(R?fname(R):"")+'</h2><button type="button" class="btn sm ghost" data-a="close-modal">Cancel</button></div>'+
       (R&&R.avoid?'<div class="avoid"><b>⚠ Avoid:</b> '+esc(R.avoid)+'</div>':'')+
       msgArea(imsg,R?R.phone:"")+EDITHINT+'<div class="row">'+
       (ix?'<a class="btn primary" href="'+esc(ix)+'" target="_blank" rel="noopener noreferrer" data-a="ev-invite-sent" data-id="'+esc(m.r)+'">Text the invite</a>':'')+
@@ -1969,7 +1990,9 @@ function modalHTML(){
       '<div class="field"><label for="t-email">Sign-in email</label><input type="email" id="t-email" name="email" autocomplete="off" placeholder="The email he signs in with" value="'+esc(t.email||"")+'"></div>'+
       '<div class="field"><label for="t-home">Hometown</label><input id="t-home" name="hometown" value="'+esc(t.hometown||"")+'" placeholder="For better lunch matches"></div>'+
       '<div class="field"><label for="t-major">Major</label><input id="t-major" name="major" value="'+esc(t.major||"")+'"></div>'+
-      '<div class="field"><label for="t-church">Church</label><input id="t-church" name="church" value="'+esc(t.church||"")+'"></div></div>'+
+      '<div class="field"><label for="t-church">Church</label><input id="t-church" name="church" value="'+esc(t.church||"")+'"></div>'+
+      '<div class="field"><label for="tm-y">Year</label><input type="text" id="tm-y" name="year" value="'+esc(t.year||"")+'"></div><div class="field"><label for="tm-d">Dorm</label><input type="text" id="tm-d" name="dorm" value="'+esc(t.dorm||"")+'"></div>'+
+      '<div class="field" style="grid-column:1/-1"><label for="tm-i">Things he’s into</label><input type="text" id="tm-i" name="interests" value="'+esc(t.interests||"")+'"></div></div>'+
       '<div class="spread">'+(m.id?'<div class="row">'+(t.uid?'<button type="button" class="btn ghost" data-a="unlink-t" data-id="'+esc(m.id)+'">Unlink sign-in</button>':"")+'<button type="button" class="btn danger ghost" data-a="del-t" data-id="'+esc(m.id)+'">Remove</button></div>':'<span></span>')+'<button class="btn primary" type="submit">Save</button></div></form>';
   }
   return h+'</div></div>';
@@ -2022,6 +2045,10 @@ document.addEventListener("click",function(e){
       var fallback=function(){if(box.type==="hidden"){toast("Couldn't copy. Long-press the number to copy it.");return;}try{box.focus();box.select();box.setSelectionRange(0,v.length);}catch(e){}toast("Selected. Press Cmd+C (or long-press and Copy).");};
       try{navigator.clipboard.writeText(v).then(ok,fallback);}catch(e){fallback();}})();break;
     case "sms-open":break;
+    case "me-edit":ui.meEdit=true;render();break;
+    case "me-edit-done":ui.meEdit=false;render();break;
+    case "fu-text":ui.modal={type:"futext",id:id,l:el.dataset.l};render();break;
+    case "fu-sent":(function(){var L=S.lunches.get(el.dataset.l);logReach(id,"text",{followup:true});if(L){var f2=Object.assign({},L.followups||{});f2[id]=Date.now();updDoc("lunches/"+L.id,{followups:f2});}setTimeout(function(){if(ui.modal&&ui.modal.type==="futext"){ui.modal=null;render();}},300);})();break;
     case "call-out":(function(){var cr=curCallRound();var v=el.dataset.v;markSend(cr,id,v).then(function(){if(v==="talked"){ui.modal={type:"callnote",id:id};render();}else{toast("Saved");if(v==="voicemail"){ui.modal={type:"roundtext",r:cr?cr.id:"",id:id,call:true};render();}}});})();break;
     case "call-text":(function(){var cr=curCallRound();ui.modal={type:"roundtext",r:cr?cr.id:"",id:id,call:true};render();})();break;
     case "call-log":ui.modal={type:"calllog"};render();focusFirst();break;
@@ -2059,7 +2086,7 @@ document.addEventListener("click",function(e){
     case "copy-rtext":(function(){var L=S.lunches.get(el.dataset.l);var r=S.rushees.get(el.dataset.r);if(!L||!r)return;
       var full=(r.phone?r.phone+"\n":"")+rusheeMsg(L,r.id);
       var mark=function(){if(!L.reachedOut)updDoc("lunches/"+L.id,{reachedOut:true,reachedAt:Date.now()}).catch(function(){});};
-      try{navigator.clipboard.writeText(full).then(function(){toast("Copied. Paste it into a text to "+r.name.split(" ")[0]);mark();},function(){toast("Couldn't copy. Long-press the number to copy it.");});}catch(e){toast("Couldn't copy. Long-press the number to copy it.");}})();break;
+      try{navigator.clipboard.writeText(full).then(function(){toast("Copied. Paste it into a text to "+fname(r));mark();},function(){toast("Couldn't copy. Long-press the number to copy it.");});}catch(e){toast("Couldn't copy. Long-press the number to copy it.");}})();break;
     case "resched":updDoc("lunches/"+id,{date:""}).then(function(){toast("Pick a new time below");});break;
     case "copy-text":(function(){var L=S.lunches.get(el.dataset.l)||(ui.modal&&ui.modal.lunch);var t=S.team.get(el.dataset.t);if(!L||!t)return;
       var txt=lunchMsg(L,t.id);var full=(t.phone?t.phone+"\n":"")+txt;
@@ -2077,7 +2104,7 @@ document.addEventListener("click",function(e){
     case "door-new":ui.doorNew=true;render();setTimeout(function(){var i=document.getElementById("door-name");if(i)i.focus();},50);break;
     case "door-back":ui.doorNew=false;render();break;
     case "door-pick":(function(){var r=S.rushees.get(id);if(!r||!ui.ev)return;var key=ui.ev+"__"+id;var t=myTeam();
-      var welcome=function(){ui.doorMsg="Welcome, "+r.name.split(" ")[0]+"! You're checked in.";ui.doorq="";render();setTimeout(function(){ui.doorMsg="";render();var i=document.getElementById("doorq");if(i)i.focus();},2500);};
+      var welcome=function(){ui.doorMsg="Welcome, "+fname(r)+"! You're checked in.";ui.doorq="";render();setTimeout(function(){ui.doorMsg="";render();var i=document.getElementById("doorq");if(i)i.focus();},2500);};
       if(S.checkins.has(key))welcome();else setDoc("checkins/"+key,{eventId:ui.ev,rusheeId:id,by:t?t.id:"",at:Date.now(),self:true}).then(welcome);})();break;
     case "feed-more":ui.feedAll=!ui.feedAll;render();break;
     case "lo-carry":updDoc("lunches/"+id,{week:weekOf(today())}).then(function(){toast("Carried over to this week");});break;
@@ -2086,7 +2113,7 @@ document.addEventListener("click",function(e){
       var i=0;var nx=function(){if(i>=ls.length){toast("Carried "+ls.length+" over to this week");return;}var l=ls[i++];db.doc("lunches/"+l.id).update({week:wk}).then(nx,nx);};nx();})();break;
     case "drop-open":ui.modal={type:"drop",id:id};render();break;
     case "merge-open":ui.modal={type:"merge",id:id};render();focusFirst();break;
-    case "undrop":(function(){var r=S.rushees.get(id);if(!r)return;var had=lunchesFor(id).some(function(l){return l.status==="done";});updDoc("rushees/"+id,{stage:r.stageBefore||(had?"met":"new"),dropReason:"",droppedAt:null,droppedBy:"",archivedSeason:null,stageBefore:null}).then(function(){toast(r.name.split(" ")[0]+" is back on the list");});})();break;
+    case "undrop":(function(){var r=S.rushees.get(id);if(!r)return;var had=lunchesFor(id).some(function(l){return l.status==="done";});updDoc("rushees/"+id,{stage:r.stageBefore||(had?"met":"new"),dropReason:"",droppedAt:null,droppedBy:"",archivedSeason:null,stageBefore:null}).then(function(){toast(fname(r)+" is back on the list");});})();break;
     case "backup":runBackup(el);break;
     case "export-json":runExport(el);break;
     case "signin-google":signInGoogle();break;
@@ -2260,7 +2287,7 @@ document.addEventListener("submit",function(e){
     var a=firebase.auth();authUI.err="";
     (mode==="up"?a.createUserWithEmailAndPassword(em,pw).then(function(c){return c.user.sendEmailVerification();}):a.signInWithEmailAndPassword(em,pw)).catch(function(er){authUI.err=authErr(er);render();});
   } else if(kind==="team"){
-    var m3=ui.modal;var data3={name:String(fd.get("name")||"").trim(),role:fd.get("role")||"member",phone:cleanPhone(fd.get("phone")),email:String(fd.get("email")||"").trim().toLowerCase(),hometown:String(fd.get("hometown")||"").trim(),major:String(fd.get("major")||"").trim(),church:String(fd.get("church")||"").trim()};
+    var m3=ui.modal;var data3={name:String(fd.get("name")||"").trim(),role:fd.get("role")||"member",phone:cleanPhone(fd.get("phone")),email:String(fd.get("email")||"").trim().toLowerCase(),hometown:String(fd.get("hometown")||"").trim(),major:String(fd.get("major")||"").trim(),church:String(fd.get("church")||"").trim(),year:String(fd.get("year")||"").trim(),dorm:String(fd.get("dorm")||"").trim(),interests:String(fd.get("interests")||"").trim()};
     if(!data3.name){toast("Name is required");done();return;}
     if(data3.email&&!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(data3.email)){toast("That email doesn't look right");done();return;}
     var dupE=data3.email&&arr(S.team).find(function(x){return x.id!==m3.id&&String(x.email||"").toLowerCase()===data3.email;});
@@ -2290,6 +2317,12 @@ document.addEventListener("submit",function(e){
     var wel=function(){ui.doorNew=false;ui.doorMsg="Welcome, "+dn.split(" ")[0]+"! You're checked in.";render();setTimeout(function(){ui.doorMsg="";render();},2500);};
     if(dupd)ck(dupd.id).then(wel,done);
     else{var nid=newId("r");setDoc("rushees/"+nid,{name:dn,phone:cleanPhone(fd.get("phone")),year:yr,stage:"new",pointId:"",createdAt:Date.now(),createdBy:t?t.id:"",source:"walk-in",extra:{"Met at":(S.events.get(ui.ev)||{}).name||"event"}}).then(function(){return ck(nid);}).then(wel,done);}
+  } else if(kind==="aboutme"){
+    var t2=myTeam();if(!t2){toast("Pick your name on My rush first");done();return;}var pd2={};ME_FIELDS.forEach(function(x){pd2[x[0]]=String(fd.get(x[0])||"").trim().slice(0,x[0]==="interests"?200:80);});
+    updDoc("team/"+t2.id,pd2).then(function(){ui.meEdit=false;toast("Saved. Thanks!");render();},function(){toast("Couldn’t save");done();});
+  } else if(kind==="nick"){
+    var nk=String(fd.get("nickname")||"").trim().slice(0,40);
+    updDoc("rushees/"+f.dataset.id,{nickname:nk}).then(function(){toast(nk?"Goes by "+nk:"Nickname cleared");done();},done);
   } else if(kind==="avoid"){
     var av=String(fd.get("avoid")||"").trim().slice(0,300);
     updDoc("rushees/"+f.dataset.id,{avoid:av}).then(function(){toast(av?"Saved":"Cleared");done();},done);
@@ -2450,7 +2483,7 @@ function approveSub(id,btn){
 function toggleCheckin(rid){
   if(readOnly||!ui.ev)return;var key=ui.ev+"__"+rid;var t=myTeam();
   if(S.checkins.has(key))delDoc("checkins/"+key).then(function(){toast("Unchecked");});
-  else setDoc("checkins/"+key,{eventId:ui.ev,rusheeId:rid,by:t?t.id:"",at:Date.now()}).then(function(){var r=S.rushees.get(rid);toast((r?r.name.split(" ")[0]:"He")+" checked in");});
+  else setDoc("checkins/"+key,{eventId:ui.ev,rusheeId:rid,by:t?t.id:"",at:Date.now()}).then(function(){var r=S.rushees.get(rid);toast((r?fname(r):"He")+" checked in");});
 }
 function uploadPhoto(rid,file){
   toast("Saving photo…");
@@ -2522,7 +2555,7 @@ function resetPassword(){var el=document.getElementById("si-email");var em=el&&e
   firebase.auth().sendPasswordResetEmail(em).then(function(){authUI.err="Check your email for a reset link.";render();},function(e){authUI.err=authErr(e);render();});}
 function boot(){
   ui.route=(location.hash||"#me").slice(1)||"me";
-  if(TABS.map(function(x){return x[0];}).concat(["import","lunches","plan","status","report"]).indexOf(ui.route)<0)ui.route="me";
+  if(TABS.map(function(x){return x[0];}).concat(["import","lunches","plan","status","report","cards","cards-print"]).indexOf(ui.route)<0&&ui.route.indexOf("round:")!==0)ui.route="me";
   render();
   var cfg=window.BYX_FIREBASE;
   if(!window.firebase||!cfg||!cfg.apiKey||/PASTE/.test(cfg.apiKey)){status="offline";render();return;}
