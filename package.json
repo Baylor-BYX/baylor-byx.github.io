@@ -1,0 +1,11 @@
+{
+  "name": "byx-rush-portal",
+  "private": true,
+  "description": "BYX Rush Portal",
+  "scripts": {
+    "test": "node tests/run-all.js"
+  },
+  "devDependencies": {
+    "jsdom": "^31.0.1"
+  }
+}

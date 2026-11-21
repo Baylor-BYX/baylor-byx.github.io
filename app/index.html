@@ -1705,6 +1705,7 @@ function drawerHTML(){
   var ls_=lunchesFor(r.id).sort(lunchSort).reverse();var ns=notesFor(r.id);var avg=avgRating(r.id);
   var kv=[["Year",r.year],["Major",r.major],["Hometown",r.hometown],["Dorm",r.dorm],["Phone",r.phone],["Email",r.email],["Instagram",r.insta],["Church",r.church],["Referred by",r.referredBy],["Interests",r.interests]].filter(function(x){return x[1];});
   var extra=r.extra||{};Object.keys(extra).forEach(function(k){if(extra[k])kv.push([k,extra[k]]);});
+  if(!me.viewer&&addrOf(r.id))kv.push(["Mailing address",addrOf(r.id),1]);
   var h='<div class="scrim" data-a="close-drawer"><aside class="drawer" data-stop="1" aria-label="Rushee profile"'+(readOnly?'':' data-drop="'+esc(r.id)+'"')+'>'+
     '<div class="spread"><button class="btn sm ghost" data-a="close-drawer">← Back</button>'+(coord?'<div class="row"><button class="btn sm" data-a="edit-r" data-id="'+esc(r.id)+'">Edit</button></div>':"")+'</div>'+
     '<div class="row">'+(r.photoData?'<button class="photo-btn" data-a="photo-view" data-id="'+esc(r.id)+'" aria-label="See '+esc(r.name)+'’s photo larger">'+avatarHTML(r,true)+'</button>':avatarHTML(r,true))+'<div style="min-width:0"><h2 style="font-size:24px">'+esc(r.name)+'</h2>'+(r.nickname?'<div class="small">Goes by <b>'+esc(r.nickname)+'</b></div>':'')+'<div class="row" style="gap:8px;margin-top:4px">'+pill(r.stage)+(avg!=null?'<span class="small muted">Team interest '+stars(avg)+' <span class="num">'+avg.toFixed(1)+'</span></span>':"")+'</div></div></div>';
@@ -1741,7 +1742,7 @@ function drawerHTML(){
     (canTag?'<form class="inline-add" data-form="friend" data-id="'+esc(r.id)+'"><input type="text" name="friend" list="rlistnames" placeholder="Type a rushee\'s name" aria-label="Add connection"><button class="btn sm" type="submit">Link</button></form><datalist id="rlistnames">'+arr(S.rushees).filter(function(x){return x.id!==r.id;}).sort(byName).map(function(x){return '<option value="'+esc(x.name)+'">';}).join("")+'</datalist>':"")+'</section>';
   var evs=eventsFor(r.id);
   h+='<section class="section"><h3>Events attended <span class="num">'+evs.length+'</span></h3>'+(evs.length?'<div class="chips">'+evs.map(function(e){return '<span class="chip link" role="button" tabindex="0" data-a="open-ev" data-id="'+esc(e.id)+'">'+esc(e.name)+' · '+esc(fmtDate(e.date))+'</span>';}).join("")+'</div>':'<div class="small muted">Hasn\'t been checked in at an event yet.</div>')+'</section>';
-  h+=kv.length?'<dl class="kv">'+kv.map(function(x){return '<dt>'+esc(x[0])+'</dt><dd>'+esc(x[1])+'</dd>';}).join("")+'</dl>':'<div class="muted small">No details yet.</div>';
+  h+=kv.length?'<dl class="kv">'+kv.map(function(x){return '<dt>'+esc(x[0])+'</dt><dd'+(x[2]?' style="white-space:pre-wrap"':'')+'>'+esc(x[1])+'</dd>';}).join("")+'</dl>':'<div class="muted small">No details yet.</div>';
   h+='<section class="section"><div class="spread"><h3>Lunches</h3>'+(coord?'<button class="btn sm" data-a="new-l" data-rid="'+esc(r.id)+'">+ Assign lunch</button>':"")+'</div>'+(ls_.length?ls_.map(function(l){return lunchCard(l);}).join(""):'<div class="empty">No lunches yet.</div>')+'</section>';
   h+='<section class="section"><h3>Team notes <span class="num">'+ns.length+'</span></h3>';
   if(myTeam()&&!readOnly)h+='<div class="card">'+noteForm("dn-"+r.id,r.id,"","Add a note")+'</div>';
@@ -1882,7 +1883,7 @@ function modalHTML(){
     var guys=arr(S.rushees).filter(function(r){return ACTIVE(r)||sel[r.id];}).sort(byName);var shown=guys.filter(function(r){return !q||norm(r.name).indexOf(q)>=0;});
     h+='<div class="section"><div class="spread"><h2>Who gets a card</h2><button type="button" class="btn sm ghost" data-a="close-modal">Cancel</button></div>'+
       '<input type="search" id="cp-q" data-change-input="cp-q" placeholder="Search" value="'+esc(m.q||"")+'" aria-label="Search guys">'+
-      '<div class="row small"><button type="button" class="btn sm ghost" data-a="cp-stage" data-v="strong">+ All Strong</button><button type="button" class="btn sm ghost" data-a="cp-stage" data-v="interested">+ All Interested</button><button type="button" class="btn sm ghost" data-a="cp-stage" data-v="none">Clear all</button></div>'+
+      '<div class="row small"><button type="button" class="btn sm" data-a="cp-stage" data-v="all">Select everyone</button><button type="button" class="btn sm ghost" data-a="cp-stage" data-v="strong">+ All Strong</button><button type="button" class="btn sm ghost" data-a="cp-stage" data-v="interested">+ All Interested</button><button type="button" class="btn sm ghost" data-a="cp-stage" data-v="none">Clear all</button></div>'+
       '<div class="list" style="max-height:46vh;overflow:auto">'+shown.map(function(r){return '<label class="item" style="cursor:pointer"><input type="checkbox" data-change="cp-one" data-id="'+esc(r.id)+'"'+(sel[r.id]?" checked":"")+' style="width:20px;height:20px;accent-color:var(--purple)"><span class="main"><b>'+esc(r.name)+'</b><small>'+esc(stageLabel(r.stage||"new"))+'</small></span></label>';}).join("")+'</div>'+
       '<div class="row"><button class="btn primary" data-a="cp-save">Save · '+Object.keys(sel).length+' getting a card</button></div></div>';
   } else if(m.type==="cardedit"){
@@ -2072,7 +2073,7 @@ document.addEventListener("click",function(e){
     case "card-asked":(function(){var t0=myTeam();logReach(id,"text");cardSave(id,{asked:true,askedBy:t0?t0.id:""});setTimeout(function(){if(ui.modal&&ui.modal.type==="cardask"){ui.modal=null;render();}},300);})();break;
     case "card-edit":ui.modal={type:"cardedit",id:id};render();break;
     case "card-remove":cardSave(id,{eligible:false}).then(function(){ui.modal=null;render();toast("Taken off the card list");});break;
-    case "cp-stage":(function(){var v=el.dataset.v;var m=ui.modal;if(v==="none")m.sel={};else arr(S.rushees).forEach(function(r){if((r.stage||"new")===v)m.sel[r.id]=1;});render();})();break;
+    case "cp-stage":(function(){var v=el.dataset.v;var m=ui.modal;if(v==="none")m.sel={};else if(v==="all")arr(S.rushees).filter(ACTIVE).forEach(function(r){m.sel[r.id]=1;});else arr(S.rushees).forEach(function(r){if((r.stage||"new")===v)m.sel[r.id]=1;});render();})();break;
     case "cp-save":(function(){var sel=ui.modal.sel||{};var b=db.batch();var n=0;
       arr(S.rushees).forEach(function(r){var c=S.cards.get(r.id);var want=!!sel[r.id];if(want===!!(c&&c.eligible))return;n++;var ref=db.doc("cards/"+r.id);if(c)b.update(ref,{eligible:want});else b.set(ref,{rusheeId:r.id,signers:[],signedBy:[],eligible:true});});
       if(!n){ui.modal=null;render();return;}el.disabled=true;b.commit().then(function(){ui.modal=null;render();toast("Card list saved");},function(){el.disabled=false;toast("Couldn’t save");});})();break;

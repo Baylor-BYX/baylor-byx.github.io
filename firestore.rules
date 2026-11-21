@@ -1,0 +1,143 @@
+rules_version = '2';
+
+// BYX Rush Portal security rules.
+// Only people on the rush team (an access/<email> document, created when a coordinator
+// adds a brother's email on the Team tab) can read or write anything.
+// Coordinators and the owner can do everything; brothers can do their day-to-day work
+// but can't delete rushees or lunches, edit events, or change the team.
+// Leadership viewers (national staff) can read everything and change nothing.
+//
+// BEFORE PUBLISHING: replace the email below with the owner's sign-in email (lowercase),
+// the same one you put in firebase-config.js.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function verified() {
+      return request.auth != null && request.auth.token.email_verified == true;
+    }
+    function email() {
+      return request.auth.token.email.lower();
+    }
+    function isOwner() {
+      return verified() && email() in ['baylor@byx.org'];
+    }
+    function accessDoc() {
+      return /databases/$(database)/documents/access/$(email());
+    }
+    function isMember() {
+      return isOwner() || (verified() && exists(accessDoc()));
+    }
+    // Can change things: the owner, rush team members and coordinators.
+    // Leadership viewers (role 'viewer') can read everything but write nothing.
+    function isWriter() {
+      return isOwner() || (verified() && exists(accessDoc()) && get(accessDoc()).data.role in ['member', 'coordinator']);
+    }
+    function isAdmin() {
+      return isOwner() || (verified() && exists(accessDoc()) && get(accessDoc()).data.role == 'coordinator');
+    }
+
+    // Who's allowed in. Anyone signed in can check their own entry (so the app can say
+    // "you're not on the list yet"); only coordinators can change the list.
+    match /access/{who} {
+      allow get: if verified() && who == email();
+      allow list: if isAdmin();
+      allow write: if isAdmin();
+    }
+
+    match /config/{id} {
+      allow read: if isMember();
+      allow write: if isAdmin();
+    }
+
+    match /team/{id} {
+      allow read: if isMember();
+      allow create, delete: if isAdmin();
+      // A brother may stamp his sign-in and fill in his own About you info, only on his own roster entry.
+      allow update: if isAdmin()
+        || (isWriter() && resource.data.email == email()
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['uid','hometown','major','year','church','dorm','interests']));
+    }
+
+    match /events/{id} {
+      allow read: if isMember();
+      allow write: if isAdmin();
+    }
+
+    match /rushees/{id} {
+      allow read: if isMember();
+      allow create, update: if isWriter();   // walk-ins, tags, photos, replies, avoid topics
+      allow delete: if isAdmin();
+    }
+
+    match /lunches/{id} {
+      allow read: if isMember();
+      allow update: if isWriter();           // reached out, replied, date, done
+      // Brothers can plan a lunch for themselves (Plan a lunch on My rush), never for someone else.
+      allow create: if isAdmin() || (isWriter()
+        && request.resource.data.selfPlanned == true
+        && request.resource.data.status == 'planned'
+        && request.resource.data.teamIds.size() == 1
+        && get(/databases/$(database)/documents/team/$(request.resource.data.teamIds[0])).data.email.lower() == email());
+      allow delete: if isAdmin();
+    }
+
+    match /notes/{id} {
+      allow read: if isMember();
+      allow create: if isAdmin() || (isWriter() && request.resource.data.uid == request.auth.uid);
+      allow update, delete: if isAdmin() || (isWriter() && resource.data.uid == request.auth.uid);
+    }
+
+    match /reachouts/{id} {
+      allow read: if isMember();
+      allow create: if isWriter();
+      allow update, delete: if isAdmin();
+    }
+
+    match /checkins/{id} {
+      allow read: if isMember();
+      allow write: if isWriter();
+    }
+
+    // Who knows which rushee personally. Coordinators see all of it; a brother sees
+    // only his own marks. Feeds the coordinator-only "closest on the team" view.
+    match /knows/{id} {
+      allow read: if isAdmin() || (isWriter() && resource.data.uid == request.auth.uid);
+      allow create: if isAdmin() || (isWriter() && request.resource.data.uid == request.auth.uid);
+      allow update: if isAdmin();
+      allow delete: if isAdmin() || (isWriter() && resource.data.uid == request.auth.uid);
+    }
+
+    match /submissions/{id} {
+      allow read: if isMember();
+      allow create: if isWriter();
+      allow update, delete: if isAdmin();
+    }
+
+    // Break mode: call weeks and holiday texts. Coordinators set them up and assign; brothers check guys off.
+    match /rounds/{id} {
+      allow read: if isMember();
+      allow write: if isAdmin();
+    }
+    match /sends/{id} {
+      allow read: if isMember();
+      allow create: if isAdmin() || (isWriter() && request.resource.data.uid == request.auth.uid);
+      allow update: if isAdmin();
+      allow delete: if isAdmin() || (isWriter() && resource.data.uid == request.auth.uid);
+    }
+
+    // Christmas cards. Brothers can sign, claim, ask for and add addresses, and mark addressed.
+    // Coordinators handle the rest (who signs, sent, received, removing a guy).
+    match /cards/{id} {
+      allow read: if isMember();
+      allow create: if isAdmin() || (isWriter() && request.resource.data.keys().hasOnly(['rusheeId','signers','signedBy','asked','askedBy','hasAddress','addressed']));
+      allow update: if isAdmin() || (isWriter() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['signers','signedBy','asked','askedBy','hasAddress','addressed']));
+      allow delete: if isAdmin();
+    }
+    // Home addresses: the rush team can see and add them (they address the cards). Leadership can't.
+    match /addresses/{id} {
+      allow read, create, update: if isWriter();
+      allow delete: if isAdmin() || isWriter();
+    }
+  }
+}
