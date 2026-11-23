@@ -22,7 +22,7 @@ The plan is in "BYX Rush Portal: Going National" (Rob has it). See "National pla
   Authorized domain: baylor-byx.github.io.
 - `app/firebase-config.js` holds the public web config (safe to be public; security comes from the rules).
 - Firestore rules live in `firestore.rules`. They are deployed by pasting into
-  Firebase console → Firestore → Rules → Publish (no Firebase CLI deploy set up yet).
+  `npm run deploy:rules` (Firebase CLI via npx), or by pasting into Firebase console → Firestore → Rules → Publish.
 
 ## Files
 
@@ -96,7 +96,9 @@ site manually for now. Make changes in the working tree only.
 
 1. `npm test` passes.
 2. Upload `app/index.html` (and any other changed files) to the repo's `app/` folder.
-3. If rules changed: paste `firestore.rules` into the Firebase console and Publish **before** people use the new feature.
+3. If rules changed: **never deploy rules unless Rob explicitly says "deploy rules"** (dry runs are fine). Then run `npm run deploy:rules` (Firebase CLI via npx; config in `firebase.json` / `.firebaserc`,
+   signed in as baylor@byx.org) **before** people use the new feature. Check first with
+   `npx firebase-tools deploy --only firestore:rules --dry-run`. Pasting into the console still works as a fallback.
 4. Check the live site after ~1–2 minutes (GitHub Pages delay). The service worker is network-first, so a refresh picks it up.
 
 ## Writing and UI conventions
