@@ -8,6 +8,8 @@ const makeFake = require("./fakefb");
 const html = fs.readFileSync(require("path").join(__dirname, "..", "app", "index.html"), "utf8");
 const OWNER = "rob@example.com";
 const wait = (ms) => new Promise(r => setTimeout(r, ms));
+// Home lists to-dos as short rows; this opens each one so its full card (buttons, note form) is on the page.
+const openTodos = async (t) => { for (let i = 0; i < 20; i++) { const el = t.d.querySelector('.todo [data-a="todo"][aria-expanded="false"]'); if (!el) break; el.dispatchEvent(new t.w.MouseEvent("click", { bubbles: true })); await wait(120); } if (t.d.activeElement && t.d.activeElement.blur) t.d.activeElement.blur(); };
 let fails = 0;
 const ok = (c, m) => { console.log((c ? "PASS " : "FAIL ") + m); if (!c) fails++; };
 
@@ -108,7 +110,7 @@ const click = async (w, el) => { el.dispatchEvent(new w.MouseEvent("click", { bu
     ok(t.fake.store["lunches/l1"].reachedOut === true, "lunch marked reached out");
   } else ok(false, "no rtext button found");
   // note on a done lunch
-  t.w.location.hash = "#me"; await wait(200);
+  t.w.location.hash = "#me"; await wait(200); await openTodos(t);
   const nf = t.d.querySelector('form[data-form="note"]');
   if (nf) { const ta = nf.querySelector("textarea"); ta.value = "Great guy, from Austin."; const rb = nf.querySelector('input[name="rating"][value="4"]'); if (rb) rb.checked = true;
     nf.dispatchEvent(new t.w.Event("submit", { bubbles: true, cancelable: true })); await wait(300);
@@ -163,7 +165,7 @@ const click = async (w, el) => { el.dispatchEvent(new w.MouseEvent("click", { bu
     f.dispatchEvent(new t.w.Event("submit", { bubbles: true, cancelable: true })); await wait(300);
   };
   await logOne("Jake Sample", "2026-11-01", 4, "Coffee at Common Grounds");
-  ok(/Logged ✓/.test(txt(t.d)) && !!t.d.querySelector('.modal [data-a="sub-lunch"], [data-a="sub-lunch"]'), "after logging: Logged screen with Log another");
+  ok(/Lunch logged/.test(txt(t.d)) && !!t.d.querySelector(".modal .okmark") && !!t.d.querySelector('.modal [data-a="sub-lunch"], [data-a="sub-lunch"]'), "after logging: Logged screen with Log another");
   await logOne("Ben Demo", "2026-11-03", 5, "Great talk about faith");
   await logOne("Jake Sample", "2026-11-01", 4, "Coffee again (dup)");
   const subsNow = Object.entries(t.fake.store).filter(([p, v]) => p.startsWith("submissions/"));

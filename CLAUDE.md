@@ -111,6 +111,17 @@ site manually for now. Make changes in the working tree only.
   Always keep the `prefers-reduced-motion` fallbacks.
 - Cards use a soft shadow in light mode (`--shadow`) and a thin outline in dark mode (`--card-line`). Don't add new
   hard borders around cards.
+- **New look (Nov 2026), what each screen is built from:**
+  - Home (`vMe`): `upNextHTML` (next lunch card), then break section, then the To do list (`myTodos` / `todoRow`).
+    A to-do row is a summary; tapping it opens the full `lunchCard` or note form underneath (`ui.todo[key]`), so every
+    old control is still reachable. Then quick actions (`.quick`), schedule, guys, notes, numbers (`statStrip`), About you.
+  - Rushees: stage filter chips carry counts. Profile (`drawerHTML`): `.phead`, the red avoid banner directly under the
+    name, `.pactions` (Text, Call, Log lunch, Save contact), latest note, details, then every older section, and a pinned
+    Add a note button. On phones the profile is a bottom sheet; on wide screens it is a right-hand panel.
+  - Board (`vBoard`): review card (`#review`) with the approve buttons directly under it, numbers strip, pipeline rows
+    (`.piperow`, tap goes to Rushees filtered by stage), then seasons, left over, low interest, nudges, going cold.
+  - Use `emptyHTML(icon,title,text,btn)` for empty screens and `skeletonHTML()` while the first data loads.
+  - Tests: `tests/test-newlook.js`. Tests that need controls inside a to-do call `openTodos(t)` first.
 - No jargon in the UI ("Reached out", "Closest on the team", "Goes by", not technical terms).
 - Brand: BYX purple/plum with gold accents; supports dark mode through CSS variables (`--ink`, `--panel`, `--purple`, …).
   Never hardcode white backgrounds.

@@ -377,6 +377,84 @@ textarea{min-height:92px}
 }
 @media (prefers-reduced-motion:no-preference) and (min-width:700px){[data-enter~="modal"] .modal{animation:rise .22s ease-out}}
 @media (prefers-reduced-motion:reduce){.btn,.filters button,.tabs a,.name,.chip-me{transition:none}.btn:active,.filters button:active,.name:active,.chip-me:active{transform:none}}
+
+/* ===== New look (Nov 2026): Home, Rushees, Profile, Board. Layout and styling; same data and actions. ===== */
+:root{--pb-new:#A29FA9;--pb-met:#0388B0;--pb-interested:#9C7FCB;--pb-strong:#4F2D7F;--pb-bid:#A9BC2E;--pb-accepted:#371859;--pb-dropped:#C98A82}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--pb-new:#7C7787;--pb-met:#3BB3D6;--pb-interested:#B9A2E3;--pb-strong:#7B55C0;--pb-bid:#CCDE57;--pb-accepted:#F2EFF6;--pb-dropped:#A85A50}}
+:root[data-theme="dark"]{--pb-new:#7C7787;--pb-met:#3BB3D6;--pb-interested:#B9A2E3;--pb-strong:#7B55C0;--pb-bid:#CCDE57;--pb-accepted:#F2EFF6;--pb-dropped:#A85A50}
+.upnext{background:var(--plum);color:#fff;border-radius:20px;padding:18px;display:flex;flex-direction:column;gap:14px;box-shadow:0 10px 24px rgba(55,24,89,.25)}
+.upnext-top{display:flex;gap:14px;align-items:center}
+.upnext .avatar{box-shadow:0 0 0 2px var(--gold);flex:none}
+.upnext-eyebrow{font-family:var(--display);font-weight:700;font-size:12.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--gold)}
+.upnext-title{font-size:20px;font-weight:700;line-height:1.2;overflow-wrap:anywhere}
+.upnext-sub{font-size:14px;color:rgba(255,255,255,.85)}
+.upnext-warn{font-size:13.5px;font-weight:700;color:#FFD9D3}
+.upnext-btns{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px}
+.btn.up-pri{background:var(--gold);border-color:var(--gold);color:#2C2A26;font-weight:800}
+.btn.up-pri:hover{background:#D8E773;border-color:#D8E773}
+.btn.up-sec{background:transparent;border:1.5px solid rgba(255,255,255,.55);color:#fff}
+.btn.up-sec:hover{border-color:#fff}
+.upnext.review{border-radius:18px}
+@media (min-width:820px){.upnext-btns{display:flex}.upnext-btns .btn{min-width:190px}}
+.todo .main b,.todo .main small{white-space:normal;overflow:visible}
+.todo-item{border-top:1px solid var(--hair)}.todo-item:first-child{border-top:0}
+.todo-item>.item{border-top:0}
+.todo-warn{color:var(--bad)!important;font-weight:700}
+.todo-body{padding:0 12px 14px;display:flex;flex-direction:column;gap:10px}
+.todo-body .lunch,.todo-body .card{box-shadow:none;background:var(--panel2);border-color:var(--line)}
+.quick{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.qa{min-height:72px;border:1px solid var(--card-line);border-radius:16px;background:var(--panel);color:var(--head);font-weight:700;font-size:13px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;box-shadow:var(--shadow);padding:8px 4px;text-align:center;transition:transform .09s ease-out}
+.qa:active{transform:scale(.96)}
+.qa svg{width:22px;height:22px;color:var(--accent)}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(86px,1fr));gap:10px 6px;padding:6px 4px}
+.stats.card{padding:14px 8px}
+.stat{display:flex;flex-direction:column;align-items:center;text-align:center;gap:1px}
+.stat .num{font-size:22px;line-height:1.1;color:var(--head)}
+.stat span:last-child{font-size:12.5px;color:var(--muted);line-height:1.25}
+.stat.alert .num{color:var(--warn)}
+.empty.rich{border:0;display:flex;flex-direction:column;align-items:center;gap:8px;padding:26px 20px}
+.empty.rich b{color:var(--text);font-size:17px}
+.empty.rich .eicon{width:64px;height:64px;border-radius:50%;background:color-mix(in srgb,var(--accent) 14%,transparent);color:var(--accent);display:grid;place-items:center}
+.empty.rich .eicon svg{width:30px;height:30px}
+.empty.rich .btn{margin-top:6px}
+.skel{border-radius:var(--r);background:linear-gradient(90deg,var(--panel2) 25%,var(--panel) 50%,var(--panel2) 75%);background-size:200% 100%}
+@keyframes shimmer{from{background-position:200% 0}to{background-position:-200% 0}}
+@media (prefers-reduced-motion:no-preference){.skel{animation:shimmer 1.3s linear infinite}}
+.pipecard{gap:2px}
+.piperow{display:flex;align-items:center;gap:10px;min-height:44px;border:0;background:none;padding:0 2px;color:var(--text);cursor:pointer;text-align:left;width:100%;border-radius:8px}
+.piperow .pl{width:84px;flex:none;font-weight:600;font-size:14.5px}
+.piperow .pb{flex:1;height:10px;border-radius:5px;background:var(--panel2);overflow:hidden;display:block}
+.piperow .pb i{display:block;height:100%;border-radius:5px}
+.piperow b{width:28px;text-align:right;font-size:16px}
+.piperow .chev{color:var(--muted);font-size:18px;line-height:1}
+.piperow:active{background:var(--panel2)}
+.fdot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;vertical-align:middle}
+.filters button[aria-pressed="true"] .fdot{box-shadow:0 0 0 1.5px rgba(255,255,255,.7)}
+.list .avatar{width:44px;height:44px}
+.list .item .main b{font-size:15.5px}
+.phead{display:flex;flex-direction:column;align-items:center;text-align:center;gap:4px}
+.phead .avatar{box-shadow:0 6px 18px rgba(55,24,89,.18);margin-bottom:6px}
+.phead h2{font-size:24px}
+.avoid.avoid-top{font-size:15px;padding:11px 14px;border-width:2px}
+.pactions{display:grid;grid-template-columns:repeat(auto-fit,minmax(70px,1fr));gap:8px}
+.pact{border:0;background:none;padding:0;font:inherit;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:6px;color:var(--text);font-size:12.5px;font-weight:700;text-decoration:none}
+.pact .pic{width:52px;height:52px;border-radius:50%;background:color-mix(in srgb,var(--accent) 14%,var(--panel));color:var(--accent);display:grid;place-items:center;transition:transform .09s ease-out}
+.pact.pri .pic{background:var(--purple);color:#fff}
+.pact:active .pic{transform:scale(.94)}
+.pact svg{width:22px;height:22px}
+.card.latest{background:var(--panel2);border-color:transparent;box-shadow:none;gap:6px}
+.card.latest p{margin:0;white-space:pre-wrap;overflow-wrap:anywhere}
+.pcta{position:sticky;bottom:calc(-24px - env(safe-area-inset-bottom));margin:0 -18px calc(-24px - env(safe-area-inset-bottom));padding:12px 18px calc(14px + env(safe-area-inset-bottom));background:var(--bg);box-shadow:0 -1px 0 var(--line);display:flex}
+.pcta .btn{flex:1;min-height:50px;font-size:16px}
+.logged{align-items:center;text-align:center;gap:10px}
+.okmark.big{width:84px;height:84px;font-size:44px;margin:6px 0 2px}
+.logged .row{justify-content:center}
+@media (max-width:699px){
+  .scrim{align-items:flex-end}
+  .drawer{height:calc(100% - 28px - env(safe-area-inset-top));border-left:0;border-radius:22px 22px 0 0;padding-top:10px;box-shadow:0 -10px 40px rgba(23,12,35,.3)}
+  .drawer::before{content:"";width:40px;height:5px;border-radius:999px;background:var(--line);align-self:center;flex:none}
+}
+@media (prefers-reduced-motion:no-preference) and (max-width:699px){[data-enter~="drawer"] .drawer{animation:sheet .3s cubic-bezier(.2,.85,.25,1)}}
 </style>
 </head>
 <body>
@@ -476,7 +554,7 @@ function extGroup(phones,msg,label){var ns=phones.map(normPhone).filter(Boolean)
 function inviteMsg(e,rid){var r=S.rushees.get(rid);var t=myTeam();
   return "Hey "+(r?fname(r):"")+"! This is "+(t?t.name.split(" ")[0]:"")+" with BYX. We're having "+e.name+" "+whenPhrase(e.date,e.time,e.place)+". We'd love for you to come, and bring any guys you know!";}
 function avatarTint(n){var s=String(n||""),h=0,i;for(i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))%9973;return h%6;}
-function avatarHTML(r,big){var st=big?' style="width:64px;height:64px;font-size:22px"':'';var tn=avatarTint(r?r.name:"");
+function avatarHTML(r,big){var sz=big===true?64:(+big||0);var st=sz?' style="width:'+sz+'px;height:'+sz+'px;font-size:'+Math.round(sz*.34)+'px"':'';var tn=avatarTint(r?r.name:"");
   if(r&&r.photoData&&/^data:image\//.test(r.photoData))return '<span class="avatar"'+st+'><img src="'+esc(r.photoData)+'" alt="" loading="lazy"></span>';
   return '<span class="avatar'+(tn?" av"+tn:"")+'"'+st+'>'+esc(initials(r?r.name:"?"))+'</span>';}
 function eventsFor(rid){return arr(S.checkins).filter(function(c){return c.rusheeId===rid;}).map(function(c){return S.events.get(c.eventId);}).filter(Boolean).sort(function(a,b){return (b.date||"").localeCompare(a.date||"");});}
@@ -574,7 +652,7 @@ function render(){
   var html='<div class="shell"><header class="top"><div class="brand"><img src="'+LOGO+'" alt="Beta Upsilon Chi"><div class="bt"><b>Rush Portal</b><small>'+esc([S.config.chapter||"Iota Chapter",S.config.season||"Rush"].join(" · "))+'</small></div></div>'+
     '<div class="who"><span class="dot '+dotCls+'" title="'+esc(statusText())+'"></span>'+meChip+'</div></header>'+
     '<nav class="tabs" aria-label="Sections">'+TABS.filter(function(x){return !(me.viewer&&x[0]==="me")&&!(x[0]==="board"&&isBrother());}).map(function(x){return '<a href="#'+x[0]+'"'+((TAB_OF[ui.route]||ui.route)===x[0]?' aria-current="page"':'')+'>'+ICONS[x[0]]+'<span>'+x[1]+'</span>'+(x[0]==="board"&&isCoord()&&pendingSubs().length?'<b class="badge">'+pendingSubs().length+'</b>':'')+'</a>';}).join("")+'</nav>'+
-    '<main id="view">'+banners()+view()+'</main></div>'+
+    '<main id="view">'+banners()+(status==="connecting"&&!S.rushees.size&&!S.team.size?skeletonHTML():view())+'</main></div>'+
     (ui.drawer?drawerHTML():"")+(ui.modal?modalHTML():"")+(ui.door&&ui.ev&&S.events.get(ui.ev)?doorHTML(S.events.get(ui.ev)):"");
   var y=window.scrollY;
   var dScroll=document.querySelector(".drawer");var ds=dScroll?dScroll.scrollTop:0;
@@ -1167,6 +1245,64 @@ function vCardsPrint(){
     '<h3>No address yet</h3><div class="small">'+g.filter(function(r){return !addrOf(r.id);}).map(function(r){return esc(r.name);}).join(", ")+'</div>';}
 
 /* My rush */
+/* ---- New look helpers (Nov 2026) ---- */
+var UI_ICON={
+  plan:'<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4M12 13v5M9.5 15.5h5"/></svg>',
+  log:'<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M7.5 12.5l3 3 6-6.5"/></svg>',
+  pnm:'<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="8" r="4"/><path d="M2.5 21c0-4.2 3.3-7 7.5-7 1.6 0 3 .4 4.2 1.1M18 14v6M15 17h6"/></svg>',
+  text:'<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H9l-5 4z"/></svg>',
+  call:'<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 005 5L15 13l5 2v4a1 1 0 01-1 1C10.7 20 4 13.3 4 5a1 1 0 011-1z"/></svg>',
+  contact:'<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="11" r="2.2"/><path d="M5.5 16c.6-1.6 2-2.4 3.5-2.4s2.9.8 3.5 2.4M15 10h4M15 13.5h3"/></svg>',
+  check:'<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
+  cal:'<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>',
+  search:'<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg>',
+  people:'<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"/><path d="M2 20c0-3.6 3-6 7-6s7 2.4 7 6M16 4.6a3.5 3.5 0 010 6.8M18.5 14.5c2.2.8 3.5 2.7 3.5 5.5"/></svg>'
+};
+function mdLabel(d){var p=String(d||"").split("-");if(p.length<3)return "";return new Date(+p[0],+p[1]-1,+p[2]).toLocaleDateString("en-US",{month:"short",day:"numeric"});}
+function lcDay(x){return String(x).replace(/^(Today|Tomorrow|Yesterday)$/,function(w){return w.toLowerCase();});}
+function emptyHTML(icon,title,text,btn){return '<div class="empty rich"><span class="eicon">'+(UI_ICON[icon]||"")+'</span><b>'+esc(title)+'</b>'+(text?'<span>'+esc(text)+'</span>':'')+(btn||"")+'</div>';}
+function statStrip(items,card){return '<div class="stats'+(card?" card":"")+'">'+items.map(function(x){return '<div class="stat'+(x[2]?" alert":"")+'"><span class="num">'+x[0]+'</span><span>'+esc(x[1])+'</span></div>';}).join("")+'</div>';}
+function skeletonHTML(){return '<div class="skel" style="height:34px;width:55%"></div><div class="skel" style="height:150px"></div><div class="skel" style="height:22px;width:35%"></div><div class="skel" style="height:72px"></div><div class="skel" style="height:72px"></div><div class="skel" style="height:72px"></div>';}
+/* One row in the Home to-do list. Tapping the words opens the full card underneath. */
+function todoRow(o){
+  var open=!!(ui.todo&&ui.todo[o.key])&&!!o.body;
+  return '<div class="todo-item'+(open?" open":"")+'"><div class="item" style="cursor:default">'+o.av+
+    '<span class="main"'+(o.body?' role="button" tabindex="0" data-a="todo" data-k="'+esc(o.key)+'" aria-expanded="'+open+'" style="cursor:pointer"':'')+'><b>'+esc(o.title)+'</b><small>'+esc(o.sub)+'</small>'+(o.warn||"")+'</span>'+
+    '<span class="side">'+(o.btn||"")+'</span></div>'+(open?'<div class="todo-body">'+o.body+'</div>':'')+'</div>';}
+function myTodos(t,toSched,owed){
+  var rows=[];
+  toSched.forEach(function(l){
+    var ids=l.rusheeIds||[];var r=S.rushees.get(ids[0]);var names=ids.map(function(id){return rName(id);}).join(" and ")||"your rushee";
+    var key="l-"+l.id;var kind=String(l.kind||"Lunch").toLowerCase();var since=l.reachedAt||l.createdAt||0;
+    var replied=l.reachedOut&&ids.some(function(id){var x=S.rushees.get(id);return x&&(x.lastReplyAt||0)>since;});
+    var openBtn=function(lbl,pri){return '<button class="btn sm'+(pri?" primary":"")+'" data-a="todo" data-k="'+esc(key)+'">'+lbl+'</button>';};
+    var warn=ids.map(function(id){var x=S.rushees.get(id);return x&&x.avoid?'<small class="todo-warn">⚠ Avoid'+(ids.length>1?" with "+esc(fname(x)):"")+': '+esc(x.avoid)+'</small>':"";}).join("");
+    var title,sub,btn;
+    if(!l.reachedOut){title="Reach out to "+names;sub="Set a "+kind+(l.week?" for the week of "+mdLabel(l.week):"");
+      btn=readOnly?"":(ids.length===1&&r&&normPhone(r.phone)?'<button class="btn sm primary" data-a="rtext" data-l="'+esc(l.id)+'" data-p="'+esc(r.id)+'">Text</button>':openBtn("Open",true));}
+    else if(replied){title="Set a time with "+names;sub=(r?fname(r):"He")+" replied. Pick a time and add it.";btn=readOnly?"":openBtn("Set time",true);}
+    else{title="Waiting on "+names;sub="You reached out "+(l.reachedAt?ago(l.reachedAt):"already")+". No reply yet.";btn=readOnly?"":openBtn("Next step");}
+    rows.push(todoRow({key:key,av:avatarHTML(r),title:title,sub:sub,warn:warn,btn:btn,body:lunchCard(l)}));});
+  owed.forEach(function(l){(l.rusheeIds||[]).forEach(function(rid){
+    if(arr(S.notes).some(function(n){return n.lunchId===l.id&&n.teamId===t.id&&n.rusheeId===rid;}))return;
+    var key="n-"+l.id+"-"+rid;
+    rows.push(todoRow({key:key,av:avatarHTML(S.rushees.get(rid)),title:"Add your note on "+rName(rid),sub:(l.kind||"Lunch")+" was "+lcDay(fmtDate(l.date))+(l.place?" at "+l.place:""),
+      btn:readOnly?"":'<button class="btn sm" data-a="todo" data-k="'+esc(key)+'">Write</button>',
+      body:'<div class="card"><div class="spread"><div><b>'+esc(rName(rid))+'</b><div class="muted small">'+esc(l.kind||"Lunch")+' · '+esc(fmtDate(l.date))+(l.place?' · '+esc(l.place):"")+'</div></div><button class="btn sm ghost" data-a="open-r" data-id="'+esc(rid)+'">Profile</button></div>'+noteForm("owe-"+l.id+"-"+rid,rid,l.id,"How did it go?")+'</div>'}));});});
+  if(!readOnly&&!me.viewer&&ME_FIELDS.filter(function(f){return String(t[f[0]]||"").trim();}).length<3)
+    rows.push(todoRow({key:"about",av:'<span class="avatar av1">'+esc(initials(t.name))+'</span>',title:"Tell the team about you",sub:"Hometown, major and what you’re into, so you get paired well",btn:'<button class="btn sm" data-a="me-edit">Fill in</button>'}));
+  return rows;}
+/* The big card at the top of Home: the next lunch on his calendar. */
+function upNextHTML(l,t){
+  var ids=l.rusheeIds||[];var r=S.rushees.get(ids[0]);var names=ids.map(function(id){return rName(id);}).join(" and ")||"your rushee";
+  var others=(l.teamIds||[]).filter(function(x){return x!==t.id;}).map(function(x){return teamName(x);});
+  var when=fmtDate(l.date)+(l.time?" · "+fmtTime(l.time):"");
+  var sub=[l.place,others.length?"with "+others.join(" and "):""].filter(Boolean).join(" · ")||"No place set yet";
+  var canText=!readOnly&&ids.length===1&&r&&normPhone(r.phone);
+  var warn=ids.map(function(id){var x=S.rushees.get(id);return x&&x.avoid?'<div class="upnext-warn">⚠ Avoid'+(ids.length>1?" with "+esc(fname(x)):"")+': '+esc(x.avoid)+'</div>':"";}).join("");
+  return '<section class="upnext" aria-label="Up next"><div class="upnext-top">'+avatarHTML(r,56)+'<div style="min-width:0"><div class="upnext-eyebrow">Up next · '+esc(when)+'</div><div class="upnext-title">'+esc((l.kind||"Lunch")+" with "+names)+'</div><div class="upnext-sub">'+esc(sub)+'</div></div></div>'+warn+
+    '<div class="upnext-btns">'+(canText?'<button class="btn up-pri" data-a="up-text" data-id="'+esc(l.id)+'">Text '+esc(fname(r))+'</button>':(readOnly?'':'<button class="btn up-pri" data-a="cal" data-id="'+esc(l.id)+'">Add to calendar</button>'))+
+    (r?'<button class="btn up-sec" data-a="open-r" data-id="'+esc(r.id)+'">'+(ids.length>1?"Profile":"His profile")+'</button>':'')+'</div></section>';}
 function vMe(){
   ensureHolidayRounds();
   var t=myTeam();
@@ -1180,38 +1316,29 @@ function vMe(){
   arr(S.rushees).forEach(function(r){if(r.pointId===t.id)rids[r.id]=1;});
   var myR=Object.keys(rids).map(function(id){return S.rushees.get(id);}).filter(Boolean).sort(byName);
   var myNotes=arr(S.notes).filter(function(n){return n.teamId===t.id;}).sort(function(a,b){return (b.createdAt||0)-(a.createdAt||0);}).slice(0,6);
-  var h='<div class="spread"><div><h2>Hey, '+esc(t.name.split(" ")[0])+'</h2><div class="muted small">'+esc(ROLES[t.role]||"Rush team")+(me.isOwner?" · Portal owner":"")+'</div></div>'+
+  var todos=myTodos(t,toSched,owed);
+  var bits=[];if(upcoming.length)bits.push(upcoming.length===1?"1 lunch coming up":upcoming.length+" lunches coming up");if(todos.length)bits.push(todos.length===1?"1 thing to do":todos.length+" things to do");
+  var h='<div class="spread"><div><h2>Hey, '+esc(t.name.split(" ")[0])+'</h2><div class="muted small">'+esc(ROLES[t.role]||"Rush team")+(me.isOwner?" · Portal owner":"")+' · '+(bits.length?bits.join(", "):"all caught up")+'</div></div>'+
     (isCoord()?'<button class="btn primary" data-a="new-l">+ Assign lunch</button>':"")+'</div>';
-  if(breakOn()){var ng9=nearGuys(t);var nl9=ng9?ng9.list.filter(function(x){return !nearTouch(x.r.id);}).length:0;
-    var tl9=0;roundsOpen("text").forEach(function(rd){tl9+=roundGuys().filter(function(r){return whoOf(rd,r.id)===t.id&&!sendOf(rd,r.id);}).length;});
-    h+='<div class="tiles"><div class="tile"><span class="num">'+nl9+'</span><span>Guys near you</span></div><div class="tile'+(tl9?" alert":"")+'"><span class="num">'+tl9+'</span><span>Holiday texts left</span></div><div class="tile'+(owed.length?" alert":"")+'"><span class="num">'+owed.length+'</span><span>Notes you owe</span></div><div class="tile"><span class="num">'+upcoming.length+'</span><span>Lunches scheduled</span></div></div>';}
-  else h+='<div class="tiles"><div class="tile'+(toSched.length?" alert":"")+'"><span class="num">'+toSched.length+'</span><span>To schedule</span></div><div class="tile"><span class="num">'+upcoming.length+'</span><span>Scheduled</span></div>'+
-     '<div class="tile'+(owed.length?" alert":"")+'"><span class="num">'+owed.length+'</span><span>Notes you owe</span></div>'+
-     '<div class="tile"><span class="num">'+myR.length+'</span><span>Your guys</span></div></div>';
+  if(upcoming.length)h+=upNextHTML(upcoming[0],t);
   if(breakOn())h+=myBreakHTML(t);
-  if(!readOnly&&!me.viewer)h+=aboutMeHTML(t);
+  if(todos.length)h+='<section class="section"><h3>To do <span class="badge" style="vertical-align:middle">'+todos.length+'</span></h3><div class="list todo">'+todos.join("")+'</div></section>';
+  else if(!upcoming.length&&!breakOn())h+=emptyHTML("check","You’re all caught up","Nothing is waiting on you. Plan a lunch with one of your guys whenever you’re ready.","");
+  if(!readOnly)h+='<div class="quick"><button class="qa" data-a="plan-own">'+UI_ICON.plan+'<span>Plan a lunch</span></button><button class="qa" data-a="sub-lunch">'+UI_ICON.log+'<span>Log a lunch</span></button><button class="qa" data-a="sub-pnm">'+UI_ICON.pnm+'<span>Suggest a PNM</span></button></div>';
   if(cardsOn())h+='<a class="item" href="#cards" style="border:1px solid var(--line);border-radius:12px"><span class="main"><b>🎄 Christmas cards</b><small>'+(function(){var c=cardGuys().filter(function(r){var x=cardOf(r.id);return (x.signers||[]).indexOf(t.id)>=0&&(x.signedBy||[]).indexOf(t.id)<0;}).length;return c?c+" card"+(c===1?"":"s")+" for you to sign":"Sign cards, add addresses";})()+'</small></span><span class="side">›</span></a>';
-  if(!readOnly)h+='<div class="row"><button class="btn'+(breakOn()?'':' primary')+'" data-a="plan-own">+ Plan a lunch</button><button class="btn" data-a="sub-lunch">+ Log a lunch I went on</button><button class="btn" data-a="sub-pnm">+ Suggest a new PNM</button>'+(myR.length?'<button class="btn ghost" data-a="save-contacts-mine">Save my guys to contacts</button>':'')+'</div>';
   var mySubs=arr(S.submissions).filter(function(x){return x.by===t.id&&x.status==="pending";}).sort(function(a,b){return (b.createdAt||0)-(a.createdAt||0);});
   if(mySubs.length>3)h+='<div class="small muted" style="padding:2px 4px">You have <b>'+mySubs.length+'</b> submissions waiting for Jonah and Clark to review. They disappear from here once reviewed.</div>';
   else if(mySubs.length)h+='<section class="section"><h3>Waiting for review</h3><div class="list">'+mySubs.map(function(x){
       var lbl=x.type==="lunch"?"Lunch with "+rName(x.rusheeId)+" · "+fmtDate(x.date):"New PNM: "+x.name;
       return '<div class="item" style="cursor:default"><span class="main"><b>'+esc(lbl)+'</b><small>'+esc(ago(x.createdAt))+'</small></span><span class="side"><span class="sc warn">Waiting</span></span></div>';}).join("")+'</div></section>';
-  if(toSched.length){h+='<section class="section"><h3>Your assignments: reach out and set a time</h3>'+toSched.map(function(l){return lunchCard(l);}).join("")+'</section>';}
-  if(owed.length){
-    h+='<section class="section"><h3>Notes you owe</h3>';
-    owed.forEach(function(l){
-      (l.rusheeIds||[]).forEach(function(rid){
-        if(arr(S.notes).some(function(n){return n.lunchId===l.id&&n.teamId===t.id&&n.rusheeId===rid;}))return;
-        h+='<div class="card"><div class="spread"><div><b>'+esc(rName(rid))+'</b><div class="muted small">'+esc(l.kind||"Lunch")+' · '+esc(fmtDate(l.date))+(l.place?' · '+esc(l.place):"")+'</div></div>'+
-           '<button class="btn sm ghost" data-a="open-r" data-id="'+esc(rid)+'">Profile</button></div>'+noteForm("owe-"+l.id+"-"+rid,rid,l.id,"How did it go?")+'</div>';
-      });
-    });
-    h+='</section>';
-  }
-  h+='<div class="grid2"><section class="section"><h3>Your schedule</h3>'+(upcoming.length?upcoming.map(function(l){return lunchCard(l);}).join(""):'<div class="empty">Nothing on your calendar yet. Your coordinator will assign you lunches here.</div>')+'</section>';
-  h+='<section class="section"><h3>Your guys</h3>'+(myR.length?'<div class="list">'+myR.map(rusheeItem).join("")+'</div>':'<div class="empty">Guys you\'re assigned to take on a lunch will show up here.</div>');
+  h+='<div class="grid2"><section class="section"><h3>Your schedule</h3>'+(upcoming.length?upcoming.map(function(l){return lunchCard(l);}).join(""):emptyHTML("cal","Nothing on your calendar yet","Plan a lunch with one of your guys and it shows up here.",readOnly?"":'<button class="btn primary" data-a="plan-own">Plan a lunch</button>'))+'</section>';
+  h+='<section class="section"><div class="spread"><h3>Your guys</h3>'+(!readOnly&&myR.length?'<button class="btn sm ghost" data-a="save-contacts-mine">Save my guys to contacts</button>':'')+'</div>'+(myR.length?'<div class="list">'+myR.map(rusheeItem).join("")+'</div>':'<div class="empty">Guys you\'re assigned to take on a lunch will show up here.</div>');
   h+='<h3 style="margin-top:8px">Your latest notes</h3>'+(myNotes.length?'<div class="card">'+myNotes.map(function(n){return noteHTML(n,true);}).join("")+'</div>':'<div class="empty">No notes yet.</div>')+'</section></div>';
+  var st=[[upcoming.length,"Scheduled"],[myR.length,"Your guys"],[mySubs.length,"In review"]];
+  if(breakOn()){var ng9=nearGuys(t);var tl9=0;roundsOpen("text").forEach(function(rd){tl9+=roundGuys().filter(function(r){return whoOf(rd,r.id)===t.id&&!sendOf(rd,r.id);}).length;});
+    st.unshift([ng9?ng9.list.filter(function(x){return !x.tc;}).length:0,"Guys near you"],[tl9,"Holiday texts left",tl9>0]);}
+  h+=statStrip(st);
+  if(!readOnly&&!me.viewer)h+=aboutMeHTML(t);
   return h;
 }
 function vClaim(){
@@ -1241,6 +1368,29 @@ function vBoard(){
   var notesWk=arr(S.notes).filter(function(n){return (n.createdAt||0)>=wkAgo;}).length;
   var counts={};STAGES.forEach(function(s){counts[s[0]]=0;});rs.forEach(function(r){counts[r.stage||"new"]=(counts[r.stage||"new"]||0)+1;});
   var h='<div class="spread"><h2>Rush board</h2>'+(isCoord()?'<div class="row"><a class="btn ghost" href="#report">Report</a><a class="btn" href="#import">Import sheet</a><a class="btn" href="#plan">Plan a week</a><button class="btn primary" data-a="new-l">+ Assign lunch</button></div>':(me.viewer||me.isOwner?'<a class="btn primary" href="#report">Recruitment report</a>':""))+'</div>';
+  var subs=pendingSubs();
+  if(isCoord()&&subs.length){
+    var okLunches=subs.filter(function(x){return x.type==="lunch"&&!lunchDup(x);}).length;
+    var nSL=subs.filter(function(x){return x.type==="lunch";}).length,nSP=subs.length-nSL;
+    var sumTxt=[nSL?nSL+" lunch"+(nSL===1?"":"es"):"",nSP?nSP+" new PNM"+(nSP===1?"":"s"):""].filter(Boolean).join(" and ");
+    var fromN=[];subs.forEach(function(x){var n=teamName(x.by).split(" ")[0];if(fromN.indexOf(n)<0)fromN.push(n);});
+    var fromTxt=fromN.length>3?fromN.slice(0,3).join(", ")+" and "+(fromN.length-3)+" more":(fromN.length>1?fromN.slice(0,-1).join(", ")+" and "+fromN[fromN.length-1]:fromN[0]||"");
+    h+='<section class="section" id="review"><div class="upnext review"><div><div class="upnext-eyebrow">Needs your review <span class="badge" style="vertical-align:middle">'+subs.length+'</span></div><div class="upnext-title">'+esc(sumTxt)+'</div><div class="upnext-sub">From '+esc(fromTxt)+'</div></div>'+(okLunches>1?'<div class="upnext-btns"><button class="btn up-pri" data-a="sub-approve-all">Approve all '+okLunches+' lunches</button></div>':'')+'</div>'+subs.map(function(x){
+      var who=teamName(x.by);var body;
+      if(x.type==="lunch")body='<b>Lunch logged: '+esc(rName(x.rusheeId))+'</b>'+(x.rating?' '+stars(x.rating):'')+(x.rating&&x.rating<=2?' <span class="tag" style="color:var(--warn)">Low interest</span>':'')+'<div class="small muted">'+esc(fmtDate(x.date))+(x.time?" · "+esc(fmtTime(x.time)):"")+(x.place?" · "+esc(x.place):"")+' · submitted by '+esc(who)+' '+esc(ago(x.createdAt))+'</div>'+(x.note?'<div class="small" style="white-space:pre-wrap">"'+esc(x.note)+'"</div>':'')+(lunchDup(x)?'<div class="small" style="color:var(--warn)">Possible duplicate: this brother already has a lunch with him around that date. Approve all skips this one.</div>':'');
+      else{var dup=similarRushee(x.name,null);
+        body='<b>New PNM: '+esc(x.name)+'</b><div class="small muted">'+esc([x.year,x.phone].filter(Boolean).join(" · ")||"No details")+' · suggested by '+esc(who)+' '+esc(ago(x.createdAt))+'</div>'+(x.note?'<div class="small" style="white-space:pre-wrap">"'+esc(x.note)+'"</div>':'')+(dup?'<div class="small" style="color:var(--warn)">Heads up: '+(norm(dup.name)===norm(x.name)?esc(dup.name)+' is already on the list.':'is this '+esc(dup.name)+', who’s already on the list?')+'</div>':'');}
+      return '<div class="sub">'+body+'<div class="row"><button class="btn sm primary" data-a="sub-approve" data-id="'+esc(x.id)+'">Approve</button><button class="btn sm ghost" data-a="sub-reject" data-id="'+esc(x.id)+'">'+(x.type==="lunch"?"Reject":"Don't add")+'</button></div></div>';
+    }).join("")+'</section>';
+  }
+  h+=statStrip([[active.length,"Active rushees"],[weekL.length,"Lunches next 7 days"],[arr(S.lunches).filter(function(l){return l.status==="planned"&&!l.date;}).length,"Assigned, not scheduled"],[need.length,"Not assigned",need.length>0],[notesWk,"Notes this week"]],true);
+  if(rs.length){
+    var pmx=Math.max.apply(null,STAGES.map(function(s){return counts[s[0]]||0;}))||1;
+    h+='<div class="card pipecard"><div class="spread"><h3>Pipeline</h3><span class="small muted">Tap a stage to see the guys</span></div>'+STAGES.map(function(s){var n=counts[s[0]]||0;
+      return '<button class="piperow" data-a="go-stage" data-v="'+s[0]+'" aria-label="'+s[1]+': '+n+'"><span class="pl">'+s[1]+'</span><span class="pb"><i style="width:'+(n/pmx*100)+'%;background:var(--pb-'+s[0]+')"></i></span><b class="num">'+n+'</b><span class="chev" aria-hidden="true">›</span></button>';}).join("")+'</div>';
+  } else {
+    h+='<div class="empty">No rushees yet. '+(isCoord()?'<a href="#import">Import your master rush sheet</a> or add guys one at a time on the Rushees tab.':'Your coordinator will add them soon.')+'</div>';
+  }
   h+=modesHTML()+boardBreakHTML()+(cardsOn()||isCoord()?'<a class="item" href="#cards" style="border:1px solid var(--line);border-radius:12px;margin-bottom:12px"><span class="main"><b>🎄 Christmas cards</b><small>'+(cardsOn()?"On for the team":"Off · coordinators can set it up")+'</small></span><span class="side">›</span></a>':'');
   var thisWk=weekOf(tdy);
   var left=arr(S.lunches).filter(function(l){return l.status==="planned"&&!l.date&&l.week&&weekOf(l.week)<thisWk;}).sort(function(a,b){return rName((a.rusheeIds||[])[0]).localeCompare(rName((b.rusheeIds||[])[0]));});
@@ -1253,38 +1403,16 @@ function vBoard(){
         '<select data-change="lo-reassign" data-id="'+esc(l.id)+'" aria-label="Give to another brother" style="width:auto;padding:5px 8px;font-size:13px"><option value="">Give to…</option>'+bros.filter(function(b){return b.id!==tid;}).map(function(b){return '<option value="'+esc(b.id)+'">'+esc(b.name)+'</option>';}).join("")+'</select>'+
         '<button class="btn sm ghost" data-a="lo-drop" data-id="'+esc(l.id)+'">Drop</button></span></div>';}).join("")+'</div></section>';
   }
-  var subs=pendingSubs();
-  if(isCoord()&&subs.length){
-    var okLunches=subs.filter(function(x){return x.type==="lunch"&&!lunchDup(x);}).length;
-    h+='<section class="section"><div class="spread"><h3>Needs your review <span class="badge" style="vertical-align:middle">'+subs.length+'</span></h3>'+(okLunches>1?'<button class="btn sm primary" data-a="sub-approve-all">Approve all '+okLunches+' lunches</button>':'')+'</div>'+subs.map(function(x){
-      var who=teamName(x.by);var body;
-      if(x.type==="lunch")body='<b>Lunch logged: '+esc(rName(x.rusheeId))+'</b>'+(x.rating?' '+stars(x.rating):'')+(x.rating&&x.rating<=2?' <span class="tag" style="color:var(--warn)">Low interest</span>':'')+'<div class="small muted">'+esc(fmtDate(x.date))+(x.time?" · "+esc(fmtTime(x.time)):"")+(x.place?" · "+esc(x.place):"")+' · submitted by '+esc(who)+' '+esc(ago(x.createdAt))+'</div>'+(x.note?'<div class="small" style="white-space:pre-wrap">"'+esc(x.note)+'"</div>':'')+(lunchDup(x)?'<div class="small" style="color:var(--warn)">Possible duplicate: this brother already has a lunch with him around that date. Approve all skips this one.</div>':'');
-      else{var dup=similarRushee(x.name,null);
-        body='<b>New PNM: '+esc(x.name)+'</b><div class="small muted">'+esc([x.year,x.phone].filter(Boolean).join(" · ")||"No details")+' · suggested by '+esc(who)+' '+esc(ago(x.createdAt))+'</div>'+(x.note?'<div class="small" style="white-space:pre-wrap">"'+esc(x.note)+'"</div>':'')+(dup?'<div class="small" style="color:var(--warn)">Heads up: '+(norm(dup.name)===norm(x.name)?esc(dup.name)+' is already on the list.':'is this '+esc(dup.name)+', who’s already on the list?')+'</div>':'');}
-      return '<div class="sub">'+body+'<div class="row"><button class="btn sm primary" data-a="sub-approve" data-id="'+esc(x.id)+'">Approve</button><button class="btn sm ghost" data-a="sub-reject" data-id="'+esc(x.id)+'">'+(x.type==="lunch"?"Reject":"Don't add")+'</button></div></div>';
-    }).join("")+'</section>';
-  }
   if(isCoord()){var lows=lowList();if(lows.length)h+='<section class="section"><h3>Low interest <span class="badge" style="vertical-align:middle">'+lows.length+'</span></h3><p class="small muted" style="margin:0">Rated 2 or lower in the last 3 weeks. Decide whether to try a different brother, give it time, or drop him.</p><div class="list">'+lows.slice(0,20).map(function(n){var r=S.rushees.get(n.rusheeId);
       return '<div class="item" style="cursor:default">'+avatarHTML(r)+'<span class="main"><b role="button" tabindex="0" data-a="open-r" data-id="'+esc(r.id)+'" style="cursor:pointer">'+esc(r.name)+'</b> '+stars(n.rating)+'<small>'+esc(teamName(n.teamId))+' · '+esc(ago(n.createdAt))+(n.text?' · “'+esc(String(n.text).slice(0,90))+(String(n.text).length>90?"…":"")+'”':'')+'</small></span><span class="side"><button class="btn sm ghost" data-a="low-seen" data-id="'+esc(n.id)+'">Got it</button></span></div>';}).join("")+'</div></section>';}
   if(isCoord()){var nds=nudges();if(nds.length)h+='<section class="section"><h3>Needs a nudge <span class="badge" style="vertical-align:middle">'+nds.length+'</span></h3><p class="small muted" style="margin:0">Assignments that have stalled. One tap opens a friendly text to the brother.</p><div class="list">'+nds.slice(0,30).map(function(n){var hr=nudgeHref(n);
       return '<div class="item" style="cursor:default"><span class="main"><b>'+esc(teamName(n.tid))+' → '+esc(rName((n.l.rusheeIds||[])[0]))+'</b><small>'+esc(n.reason)+'</small></span><span class="side">'+(hr?'<a class="btn sm" href="'+esc(hr)+'">Nudge '+esc(teamName(n.tid).split(" ")[0])+'</a>':'<span class="tag">No number</span>')+'</span></div>';}).join("")+'</div></section>';}
   if(isCoord()||me.viewer||me.isOwner){var gc=goingCold();if(gc.length)h+='<section class="section"><h3>Going cold <span class="badge" style="vertical-align:middle">'+gc.length+'</span></h3><p class="small muted" style="margin:0">Active guys no one has contacted in 10+ days.</p><div class="list">'+gc.slice(0,15).map(function(x){
       return '<div class="item" style="cursor:default">'+avatarHTML(x.r)+'<span class="main"><b role="button" tabindex="0" data-a="open-r" data-id="'+esc(x.r.id)+'" style="cursor:pointer">'+esc(x.r.name)+'</b><small>'+(x.lc?"Last contact "+esc(ago(x.lc)):"Never contacted")+' · '+esc((STAGE[x.r.stage||"new"]||{}).l||"")+'</small></span>'+(isCoord()&&!hasLunch(x.r.id)?'<span class="side"><button class="btn sm" data-a="new-l" data-rid="'+esc(x.r.id)+'">Assign</button></span>':'')+'</div>';}).join("")+'</div>'+(gc.length>15?'<div class="muted small">+'+(gc.length-15)+' more</div>':'')+'</section>';}
-  h+='<div class="tiles"><div class="tile"><span class="num">'+active.length+'</span><span>Active rushees</span></div>'+
-     '<div class="tile"><span class="num">'+weekL.length+'</span><span>Lunches next 7 days</span></div>'+
-     '<div class="tile"><span class="num">'+arr(S.lunches).filter(function(l){return l.status==="planned"&&!l.date;}).length+'</span><span>Assigned, not scheduled</span></div>'+
-     '<div class="tile'+(need.length?" alert":"")+'"><span class="num">'+need.length+'</span><span>Not assigned</span></div>'+
-     '<div class="tile"><span class="num">'+notesWk+'</span><span>Notes this week</span></div></div>';
-  if(rs.length){
-    h+='<div class="card"><h3>Pipeline</h3><div class="pipe">'+STAGES.filter(function(s){return counts[s[0]];}).map(function(s){return '<i style="width:'+(counts[s[0]]/rs.length*100)+'%;background:'+s[2]+'" title="'+s[1]+': '+counts[s[0]]+'"></i>';}).join("")+'</div>'+
-       '<div class="legend">'+STAGES.map(function(s){return '<span><i class="sw" style="background:'+s[2]+'"></i>'+s[1]+' <b>'+counts[s[0]]+'</b></span>';}).join("")+'</div></div>';
-  } else {
-    h+='<div class="empty">No rushees yet. '+(isCoord()?'<a href="#import">Import your master rush sheet</a> or add guys one at a time on the Rushees tab.':'Your coordinator will add them soon.')+'</div>';
-  }
   h+='<div class="grid2"><section class="section"><h3>Not assigned yet</h3>'+(need.length?'<div class="list">'+need.slice(0,25).map(function(r){
       return '<div class="item" style="cursor:default">'+avatarHTML(r)+'<span class="main"><b role="button" tabindex="0" data-a="open-r" data-id="'+esc(r.id)+'" style="cursor:pointer">'+esc(r.name)+'</b><small>'+esc([r.year,r.referredBy?"via "+r.referredBy:""].filter(Boolean).join(" · ")||"—")+'</small></span>'+
       (isCoord()?'<span class="side"><button class="btn sm" data-a="new-l" data-rid="'+esc(r.id)+'">Assign</button></span>':'<span class="side">'+pill(r.stage)+'</span>')+'</div>';}).join("")+'</div>'+(need.length>25?'<div class="muted small">+'+(need.length-25)+' more on the Rushees tab</div>':""):'<div class="empty">Every active rushee has an open assignment.</div>')+'</section>';
-  h+='<section class="section"><h3>Next 7 days</h3>'+(weekL.length?weekL.map(function(l){return lunchCard(l);}).join(""):'<div class="empty">No lunches in the next week.</div>');
+  h+='<section class="section"><h3>Next 7 days</h3>'+(weekL.length?weekL.map(function(l){return lunchCard(l);}).join(""):'<div class="empty">No lunches in the next 7 days.</div>');
   h+=activityHTML();
   var load=arr(S.team).map(function(t){return {t:t,n:arr(S.lunches).filter(function(l){return l.status==="planned"&&(!l.date||l.date>=tdy)&&(l.teamIds||[]).indexOf(t.id)>=0;}).length,o:notesOwed(t.id).length};}).sort(function(a,b){return b.n-a.n;});
   if(load.length)h+='<h3 style="margin-top:8px">Team load</h3><div class="list">'+load.map(function(x){return '<div class="item" style="cursor:default"><span class="main"><b>'+esc(x.t.name)+'</b></span><span class="side"><small class="small"><span class="num">'+x.n+'</span> open'+(x.o?' · <span style="color:var(--warn)"><span class="num">'+x.o+'</span> notes owed</span>':"")+'</small></span></div>';}).join("")+'</div>';
@@ -1304,14 +1432,15 @@ function filteredRushees(){
   }).sort(byName);
 }
 function rusheeListHTML(){var l=filteredRushees();var np=l.filter(function(r){return normPhone(r.phone);}).length;
-  return l.length?'<div class="list">'+l.map(rusheeItem).join("")+'</div><div class="spread"><span class="muted small">'+l.length+' shown</span>'+(!me.viewer&&np?'<button class="btn sm" data-a="save-contacts-list">Save these '+np+' to contacts</button>':'')+'</div>':'<div class="empty">No rushees match.</div>';}
+  return l.length?'<div class="list">'+l.map(rusheeItem).join("")+'</div><div class="spread"><span class="muted small">'+l.length+' shown</span>'+(!me.viewer&&np?'<button class="btn sm" data-a="save-contacts-list">Save these '+np+' to contacts</button>':'')+'</div>':emptyHTML("search","No rushees match","Try a different search, or clear the filters.",'<button class="btn" data-a="clear-filters">Clear filters</button>');}
 function vRushees(){
   var h='<div class="spread"><h2>Rushees <span class="muted num" style="font-size:16px">'+S.rushees.size+'</span></h2><span class="seg"><a href="#rushees" aria-current="page">List</a><a href="#status">Status</a></span>'+(isCoord()?'<div class="row"><a class="btn" href="#import">Import sheet</a><button class="btn primary" data-a="new-r">+ Add rushee</button></div>':"")+'</div>';
   h+='<input type="search" id="rsearch" placeholder="Search names, notes, hometown, major, church…" value="'+esc(ui.q)+'" aria-label="Search rushees">';
   var tg=allTags().slice(0,14);
   var tagRow=tg.length?'<div class="filters"><button data-a="tag-filter" data-v="" aria-pressed="'+(!ui.tag)+'">All tags</button>'+tg.map(function(x){return '<button data-a="tag-filter" data-v="'+esc(x[0])+'" aria-pressed="'+(ui.tag===x[0])+'">#'+esc(x[0])+' <span class="num" style="opacity:.7">'+x[1]+'</span></button>';}).join("")+'</div>':"";
   var f=[["all","All"],["nolunch","Not assigned"]].concat(STAGES.map(function(s){return [s[0],s[1]];}));
-  h+='<div class="filters">'+f.map(function(x){return '<button data-a="stage-filter" data-v="'+x[0]+'" aria-pressed="'+(ui.stage===x[0])+'">'+x[1]+'</button>';}).join("")+'</div>';
+  var fc={all:S.rushees.size,nolunch:0};STAGES.forEach(function(x){fc[x[0]]=0;});arr(S.rushees).forEach(function(r){var k=r.stage||"new";fc[k]=(fc[k]||0)+1;if(ACTIVE(r)&&!hasLunch(r.id))fc.nolunch++;});
+  h+='<div class="filters">'+f.map(function(x){return '<button data-a="stage-filter" data-v="'+x[0]+'" aria-pressed="'+(ui.stage===x[0])+'">'+(STAGE[x[0]]?'<i class="fdot" style="background:var(--pb-'+x[0]+')"></i>':'')+x[1]+' <span class="num" style="opacity:.7">'+(fc[x[0]]||0)+'</span></button>';}).join("")+'</div>';
   h+=tagRow+'<div id="rlist">'+rusheeListHTML()+'</div>';
   return h;
 }
@@ -1916,14 +2045,23 @@ function drawerHTML(){
   if(!me.viewer&&addrOf(r.id))kv.push(["Mailing address",addrOf(r.id),1]);
   var h='<div class="scrim" data-a="close-drawer"><aside class="drawer" data-stop="1" aria-label="Rushee profile"'+(readOnly?'':' data-drop="'+esc(r.id)+'"')+'>'+
     '<div class="spread"><button class="btn sm ghost" data-a="close-drawer">← Back</button>'+(coord?'<div class="row"><button class="btn sm" data-a="edit-r" data-id="'+esc(r.id)+'">Edit</button></div>':"")+'</div>'+
-    '<div class="row">'+(r.photoData?'<button class="photo-btn" data-a="photo-view" data-id="'+esc(r.id)+'" aria-label="See '+esc(r.name)+'’s photo larger">'+avatarHTML(r,true)+'</button>':avatarHTML(r,true))+'<div style="min-width:0"><h2 style="font-size:24px">'+esc(r.name)+'</h2>'+(r.nickname?'<div class="small">Goes by <b>'+esc(r.nickname)+'</b></div>':'')+'<div class="row" style="gap:8px;margin-top:4px">'+pill(r.stage)+(avg!=null?'<span class="small muted">Team interest '+stars(avg)+' <span class="num">'+avg.toFixed(1)+'</span></span>':"")+'</div></div></div>';
+    '<div class="phead">'+(r.photoData?'<button class="photo-btn" data-a="photo-view" data-id="'+esc(r.id)+'" aria-label="See '+esc(r.name)+'’s photo larger">'+avatarHTML(r,96)+'</button>':avatarHTML(r,96))+'<h2>'+esc(r.name)+'</h2>'+(r.nickname?'<div class="small">Goes by <b>'+esc(r.nickname)+'</b></div>':'')+
+    (function(){var s3=[r.year,r.major,r.hometown].filter(Boolean).join(" · ");return s3?'<div class="small muted">'+esc(s3)+'</div>':'';})()+
+    '<div class="row" style="gap:8px;margin-top:4px;justify-content:center">'+pill(r.stage)+(avg!=null?'<span class="small muted">Team interest '+stars(avg)+' <span class="num">'+avg.toFixed(1)+'</span></span>':"")+'</div></div>';
+  if(r.avoid)h+='<div class="avoid avoid-top"><b>⚠ Avoid:</b> '+esc(r.avoid)+'</div>';
+  if(!readOnly){var pph=normPhone(r.phone);var pacts=(pph?'<button class="pact pri" data-a="p-text" data-id="'+esc(r.id)+'"><span class="pic">'+UI_ICON.text+'</span>Text</button><a class="pact" href="tel:'+esc(pph)+'"><span class="pic">'+UI_ICON.call+'</span>Call</a>':'')+
+      (myTeam()?'<button class="pact" data-a="sub-lunch" data-id="'+esc(r.id)+'"><span class="pic">'+UI_ICON.log+'</span>Log lunch</button>':'')+
+      (pph?'<button class="pact" data-a="save-contact" data-id="'+esc(r.id)+'"><span class="pic">'+UI_ICON.contact+'</span>Save contact</button>':'');
+    if(pacts)h+='<div class="pactions">'+pacts+'</div>';}
+  var ln=ns.filter(function(n){return String(n.text||"").trim();})[0];
+  if(ln)h+='<div class="card latest"><h3>Latest note</h3><p>'+esc(String(ln.text).slice(0,240))+(String(ln.text).length>240?"…":"")+'</p><small class="muted">'+esc(teamName(ln.teamId))+' · '+esc(ago(ln.createdAt))+'</small></div>';
+  h+=kv.length?'<dl class="kv">'+kv.map(function(x){return '<dt>'+esc(x[0])+'</dt><dd'+(x[2]?' style="white-space:pre-wrap"':'')+'>'+esc(x[1])+'</dd>';}).join("")+'</dl>':'<div class="muted small">No details yet.</div>';
   if(coord){
     h+='<div class="fields"><div class="field"><label for="d-stage">Stage</label><select id="d-stage" data-change="stage" data-id="'+esc(r.id)+'">'+STAGES.map(function(s){return '<option value="'+s[0]+'"'+((r.stage||"new")===s[0]?" selected":"")+'>'+s[1]+'</option>';}).join("")+'</select></div>'+
        '<div class="field"><label for="d-point">Point brother</label><select id="d-point" data-change="point" data-id="'+esc(r.id)+'"><option value="">None</option>'+arr(S.team).sort(byName).map(function(t){return '<option value="'+esc(t.id)+'"'+(r.pointId===t.id?" selected":"")+'>'+esc(t.name)+'</option>';}).join("")+'</select></div></div>';
     h+='<label class="row small" style="gap:10px;align-items:center;cursor:pointer"><input type="checkbox" data-change="card-elig" data-id="'+esc(r.id)+'"'+((S.cards.get(r.id)||{}).eligible?" checked":"")+' style="width:20px;height:20px;accent-color:var(--purple)"> <span>🎄 <b>Christmas card</b>: he’s getting one</span></label>';
   } else if(r.pointId){h+='<div class="small muted">Point brother: <b style="color:var(--text)">'+esc(teamName(r.pointId))+'</b></div>';}
   var tools='';
-  if(!readOnly&&normPhone(r.phone))tools+='<button class="btn sm" data-a="save-contact" data-id="'+esc(r.id)+'">Save to contacts</button>';
   if(!readOnly)tools+='<label class="btn sm" style="cursor:pointer">'+(r.photoData?"Change photo":"Add photo")+'<input type="file" accept="image/*" data-change="photo" data-id="'+esc(r.id)+'" hidden></label><span class="small muted dnd-hint">or drag a photo onto this page</span>';
   if(sampleApi)tools+='<button class="btn sm primary" data-a="brief" data-id="'+esc(r.id)+'">✦ Brief me on him</button>';
   if(tools)h+='<div class="row">'+tools+'</div>';
@@ -1950,7 +2088,6 @@ function drawerHTML(){
     (canTag?'<form class="inline-add" data-form="friend" data-id="'+esc(r.id)+'"><input type="text" name="friend" list="rlistnames" placeholder="Type a rushee\'s name" aria-label="Add connection"><button class="btn sm" type="submit">Link</button></form><datalist id="rlistnames">'+arr(S.rushees).filter(function(x){return x.id!==r.id;}).sort(byName).map(function(x){return '<option value="'+esc(x.name)+'">';}).join("")+'</datalist>':"")+'</section>';
   var evs=eventsFor(r.id);
   h+='<section class="section"><h3>Events attended <span class="num">'+evs.length+'</span></h3>'+(evs.length?'<div class="chips">'+evs.map(function(e){return '<span class="chip link" role="button" tabindex="0" data-a="open-ev" data-id="'+esc(e.id)+'">'+esc(e.name)+' · '+esc(fmtDate(e.date))+'</span>';}).join("")+'</div>':'<div class="small muted">Hasn\'t been checked in at an event yet.</div>')+'</section>';
-  h+=kv.length?'<dl class="kv">'+kv.map(function(x){return '<dt>'+esc(x[0])+'</dt><dd'+(x[2]?' style="white-space:pre-wrap"':'')+'>'+esc(x[1])+'</dd>';}).join("")+'</dl>':'<div class="muted small">No details yet.</div>';
   h+='<section class="section"><div class="spread"><h3>Lunches</h3>'+(coord?'<button class="btn sm" data-a="new-l" data-rid="'+esc(r.id)+'">+ Assign lunch</button>':"")+'</div>'+(ls_.length?ls_.map(function(l){return lunchCard(l);}).join(""):'<div class="empty">No lunches yet.</div>')+'</section>';
   h+='<section class="section"><h3>Team notes <span class="num">'+ns.length+'</span></h3>';
   if(myTeam()&&!readOnly)h+='<div class="card">'+noteForm("dn-"+r.id,r.id,"","Add a note")+'</div>';
@@ -1958,6 +2095,7 @@ function drawerHTML(){
   h+=ns.length?'<div class="card">'+ns.map(function(n){return noteHTML(n,false);}).join("")+'</div>':'<div class="empty">No notes yet.</div>';
   h+='</section>';
   if(coord)h+='<section class="section"><h3>Coordinator tools</h3><div class="row">'+(r.stage==="dropped"?'<button class="btn sm" data-a="undrop" data-id="'+esc(r.id)+'">Bring him back</button>':'<button class="btn sm ghost danger" data-a="drop-open" data-id="'+esc(r.id)+'">Drop…</button>')+'<button class="btn sm ghost" data-a="merge-open" data-id="'+esc(r.id)+'">Merge a duplicate…</button></div></section>';
+  if(myTeam()&&!readOnly)h+='<div class="pcta"><button class="btn primary" data-a="note-jump" data-id="'+esc(r.id)+'">Add a note</button></div>';
   h+='</aside></div>';
   return h;
 }
@@ -2034,7 +2172,7 @@ function modalHTML(){
   } else if(m.type==="sublunch"){
     h+='<form class="section" data-form="sublunch"><div class="spread"><h2>Log a lunch</h2><button type="button" class="btn sm ghost" data-a="close-modal">Cancel</button></div>'+
       '<p class="muted small" style="margin:0">Went to lunch or coffee with a guy you weren\'t assigned? Log it here. Jonah and Clark will review it and add it to the official record.</p>'+
-      '<div class="fields"><div class="field" style="grid-column:1/-1"><label for="sl-r">Who did you go with? *</label><input type="text" id="sl-r" name="rushee" list="rlistall" required placeholder="Start typing his name"><datalist id="rlistall">'+arr(S.rushees).sort(byName).map(function(x){return '<option value="'+esc(x.name)+'">';}).join("")+'</datalist></div>'+
+      '<div class="fields"><div class="field" style="grid-column:1/-1"><label for="sl-r">Who did you go with? *</label><input type="text" id="sl-r" name="rushee" list="rlistall" required placeholder="Start typing his name" value="'+esc(m.id&&S.rushees.get(m.id)?S.rushees.get(m.id).name:"")+'"><datalist id="rlistall">'+arr(S.rushees).sort(byName).map(function(x){return '<option value="'+esc(x.name)+'">';}).join("")+'</datalist></div>'+
       '<div class="field"><label for="sl-d">Date *</label><input type="date" id="sl-d" name="date" required max="'+today()+'" value="'+today()+'"></div>'+
       '<div class="field"><label for="sl-t">Time</label><input type="time" id="sl-t" name="time"></div>'+
       '<div class="field"><label for="sl-p">Where</label><input type="text" id="sl-p" name="place" placeholder="SUB, Common Grounds…"></div></div>'+
@@ -2073,6 +2211,17 @@ function modalHTML(){
     h+='<div class="section"><div class="spread"><h2>Text '+esc(RR?fname(RR):"")+'</h2><button type="button" class="btn sm ghost" data-a="close-modal">Cancel</button></div>'+(RR&&RR.avoid?'<div class="avoid"><b>⚠ Avoid:</b> '+esc(RR.avoid)+'</div>':'')+
       msgArea(rmsg,RR?RR.phone:"")+EDITHINT+'<div class="row">'+(rx?'<a class="btn primary" href="'+esc(rx)+'" data-a="round-sent" data-r="'+esc(m.r)+'" data-id="'+esc(m.id)+'" data-v="sent">Text '+esc(fname(RR))+'</a>':'')+
       '<button class="btn'+(rx?' ghost':' primary')+'" data-a="copy-raw" data-v="'+esc((RR&&RR.phone?RR.phone+"\n":"")+rmsg)+'">Copy</button></div><p class="small muted" style="margin:0">Sending checks him off.</p></div>';
+  } else if(m.type==="uptext"){
+    var UL=S.lunches.get(m.id)||{};var UR=S.rushees.get((UL.rusheeIds||[])[0]);var uf=UR?fname(UR):"";
+    var umsg="Hey "+uf+"! Looking forward to "+String(UL.kind||"lunch").toLowerCase()+" "+whenPhrase(UL.date,UL.time,UL.place)+". See you then!";var ux=UR?extText(UR.phone,umsg,uf):"";
+    h+='<div class="section"><div class="spread"><h2>Text '+esc(uf)+'</h2><button type="button" class="btn sm ghost" data-a="close-modal">Cancel</button></div>'+(UR&&UR.avoid?'<div class="avoid"><b>⚠ Avoid:</b> '+esc(UR.avoid)+'</div>':'')+
+      msgArea(umsg,UR?UR.phone:"")+EDITHINT+'<div class="row">'+(ux?'<a class="btn primary" href="'+esc(ux)+'" data-a="up-sent" data-id="'+esc(m.id)+'" data-r="'+esc(UR.id)+'">Text '+esc(uf)+'</a>':'')+
+      '<button class="btn'+(ux?' ghost':' primary')+'" data-a="copy-raw" data-v="'+esc((UR&&UR.phone?UR.phone+"\n":"")+umsg)+'">Copy</button></div></div>';
+  } else if(m.type==="ptext"){
+    var PR=S.rushees.get(m.id);var pf=PR?fname(PR):"";var pme=myTeam();var pmsg="Hey "+pf+"! "+(pme?"It's "+pme.name.split(" ")[0]+" from BYX. ":"");var px=PR?extText(PR.phone,pmsg,pf):"";
+    h+='<div class="section"><div class="spread"><h2>Text '+esc(pf)+'</h2><button type="button" class="btn sm ghost" data-a="close-modal">Cancel</button></div>'+(PR&&PR.avoid?'<div class="avoid"><b>⚠ Avoid:</b> '+esc(PR.avoid)+'</div>':'')+
+      msgArea(pmsg,PR?PR.phone:"")+'<p class="small muted" style="margin:0">Write your message, then send it from Messages.</p><div class="row">'+(px?'<a class="btn primary" href="'+esc(px)+'" data-a="p-sent" data-id="'+esc(m.id)+'">Text '+esc(pf)+'</a>':'')+
+      '<button class="btn'+(px?' ghost':' primary')+'" data-a="copy-raw" data-v="'+esc((PR&&PR.phone?PR.phone+"\n":"")+pmsg)+'">Copy</button></div></div>';
   } else if(m.type==="neartext"){
     var NR=S.rushees.get(m.id);var nmsg=NR?nearMsg(NR,myTeam()):"";var nx=NR?extText(NR.phone,nmsg,fname(NR)):"";
     h+='<div class="section"><div class="spread"><h2>Text '+esc(NR?fname(NR):"")+'</h2><button type="button" class="btn sm ghost" data-a="close-modal">Cancel</button></div>'+(NR&&NR.avoid?'<div class="avoid"><b>⚠ Avoid:</b> '+esc(NR.avoid)+'</div>':'')+
@@ -2112,9 +2261,9 @@ function modalHTML(){
   } else if(m.type==="sublogged"){
     var nLogged=Math.max(1,arr(S.submissions).filter(function(x){return x.type==="lunch"&&x.status==="pending"&&x.uid===me.id;}).length);
     var cs2=coordinators();var gx2=extGroup(cs2.map(function(c){return c.phone;}),"Hey "+cs2.map(function(c){return c.name.split(" ")[0];}).join(" and ")+"! I logged "+(nLogged===1?"a lunch":nLogged+" lunches")+" in the BYX Rush Portal for you to review.","Jonah & Clark");
-    h+='<div class="section"><div class="spread"><h2>Logged <span class="okmark">✓</span></h2><button type="button" class="btn sm ghost" data-a="close-modal">Done</button></div>'+
+    h+='<div class="section logged"><span class="okmark big" aria-hidden="true">✓</span><h2>Lunch logged</h2>'+
       '<p style="margin:0">'+esc(m.name)+' is in Jonah and Clark\'s review list. You have <b>'+nLogged+'</b> waiting for review.</p>'+
-      '<div class="row"><button class="btn primary" data-a="sub-lunch">+ Log another lunch</button>'+
+      '<div class="row"><button class="btn primary" data-a="close-modal">Done</button><button class="btn" data-a="sub-lunch">+ Log another lunch</button>'+
       (gx2?'<a class="btn ghost" href="'+esc(gx2)+'">Text Jonah &amp; Clark</a>':'')+'</div>'+
       '<p class="small muted" style="margin:0">Logging a bunch at once? No need to text after each one.</p></div>';
   } else if(m.type==="subpnm"){
@@ -2256,6 +2405,14 @@ document.addEventListener("click",function(e){
     case "me-edit-done":ui.meEdit=false;render();break;
     case "fu-text":ui.modal={type:"futext",id:id,l:el.dataset.l};render();break;
     case "fu-sent":(function(){var L=S.lunches.get(el.dataset.l);logReach(id,"text",{followup:true});if(L){var f2=Object.assign({},L.followups||{});f2[id]=Date.now();updDoc("lunches/"+L.id,{followups:f2});}setTimeout(function(){if(ui.modal&&ui.modal.type==="futext"){ui.modal=null;render();}},300);})();break;
+    case "up-text":ui.modal={type:"uptext",id:id};render();break;
+    case "up-sent":logReach(el.dataset.r,"text",{lunchId:id});setTimeout(function(){if(ui.modal&&ui.modal.type==="uptext"){ui.modal=null;render();}},300);break;
+    case "p-text":ui.modal={type:"ptext",id:id};render();break;
+    case "p-sent":logReach(id,"text");setTimeout(function(){if(ui.modal&&ui.modal.type==="ptext"){ui.modal=null;render();}},300);break;
+    case "todo":(function(){var k=el.dataset.k;ui.todo=ui.todo||{};ui.todo[k]=!ui.todo[k];render();if(ui.todo[k]&&k.indexOf("n-")===0){var ta=document.getElementById("owe-"+k.slice(2));if(ta)ta.focus();}})();break;
+    case "go-stage":ui.stage=el.dataset.v;ui.tag="";ui.q="";location.hash="rushees";break;
+    case "clear-filters":ui.q="";ui.stage="all";ui.tag="";render();break;
+    case "note-jump":(function(){var ta=document.getElementById("dn-"+id);if(ta){if(ta.scrollIntoView)ta.scrollIntoView({block:"center"});ta.focus();}})();break;
     case "near-text":ui.modal={type:"neartext",id:id};render();break;
     case "near-sent":logReach(id,"text",{near:true});if(el.tagName==="A")setTimeout(function(){if(ui.modal&&ui.modal.type==="neartext"){ui.modal=null;render();}},300);else{ui.modal=null;render();toast("Marked as reached out");}break;
     case "near-all":ui.nearAll=true;render();break;
@@ -2351,7 +2508,7 @@ document.addEventListener("click",function(e){
     case "gfx-share":if(!ui.gfx||!ui.gfx.canvas){toast("One sec, still drawing…");break;}gfxFile().then(function(f){if(navigator.canShare&&navigator.canShare({files:[f]}))return navigator.share({files:[f]}).catch(function(){});var u=URL.createObjectURL(f);var a=document.createElement("a");a.href=u;a.download=f.name;document.body.appendChild(a);a.click();setTimeout(function(){a.remove();URL.revokeObjectURL(u);},3000);toast("Image saved");});break;
     case "gfx-save":if(!ui.gfx||!ui.gfx.canvas){toast("One sec, still drawing…");break;}gfxFile().then(function(f){var u=URL.createObjectURL(f);var a=document.createElement("a");a.href=u;a.download=f.name;document.body.appendChild(a);a.click();setTimeout(function(){a.remove();URL.revokeObjectURL(u);},3000);toast("On iPhone, use Share → Save Image");});break;
     case "replied":(function(){var lid=el.dataset.l;updDoc("rushees/"+id,{lastReplyAt:Date.now()}).then(function(){toast("Marked as replied");if(lid)updDoc("lunches/"+lid,{replied:true}).catch(function(){});});})();break;
-    case "sub-lunch":ui.modal={type:"sublunch"};render();focusFirst();break;
+    case "sub-lunch":ui.modal={type:"sublunch",id:id||""};render();focusFirst();break;
     case "plan-own":ui.modal={type:"planown",id:id||""};render();focusFirst();break;
     case "sub-pnm":ui.modal={type:"subpnm"};render();focusFirst();break;
     case "sub-approve":approveSub(id,el);break;

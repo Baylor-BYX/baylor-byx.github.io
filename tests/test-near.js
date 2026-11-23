@@ -132,7 +132,7 @@ const fire = async (w, el, ev) => { el.dispatchEvent(new w.Event(ev, { bubbles: 
   ok(!/Sample St/.test(tx) && !/Oak Hollow/.test(tx) && !/75034/.test(tx), "never shows a street address or zip");
   ok(/Avoid: his old roommate/.test(st), "topics to avoid still show");
   ok(sec().querySelector(".badge").textContent === "3", "badge counts who's left");
-  ok([...t.d.querySelectorAll(".tile")].some(x => /Guys near you/.test(x.textContent) && /3/.test(x.textContent)) && !/Calls left/.test(tx), "tile swapped from calls to guys near you");
+  ok([...t.d.querySelectorAll(".stat")].some(x => /Guys near you/.test(x.textContent) && /3/.test(x.textContent)) && !/Calls left/.test(tx), "tile swapped from calls to guys near you");
   ok(!t.d.querySelector('[data-a="call-log"]') && !/Your calls this week/.test(tx), "no calls section");
   ok(!/reached out/.test(st), "a text from before this break doesn't count");
   // text one

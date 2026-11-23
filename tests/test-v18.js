@@ -8,6 +8,8 @@ const makeFake = require("./fakefb");
 const html = fs.readFileSync(require("path").join(__dirname, "..", "app", "index.html"), "utf8");
 const OWNER = "rob@example.com";
 const wait = (ms) => new Promise(r => setTimeout(r, ms));
+// Home lists to-dos as short rows; this opens each one so its full card (buttons, note form) is on the page.
+const openTodos = async (t) => { for (let i = 0; i < 20; i++) { const el = t.d.querySelector('.todo [data-a="todo"][aria-expanded="false"]'); if (!el) break; el.dispatchEvent(new t.w.MouseEvent("click", { bubbles: true })); await wait(120); } if (t.d.activeElement && t.d.activeElement.blur) t.d.activeElement.blur(); };
 let fails = 0;
 const ok = (c, m) => { console.log((c ? "PASS " : "FAIL ") + m); if (!c) fails++; };
 
@@ -97,6 +99,7 @@ const click = async (w, el) => { el.dispatchEvent(new w.MouseEvent("click", { bu
 const fire = async (w, el, ev) => { el.dispatchEvent(new w.Event(ev, { bubbles: true, cancelable: true })); await wait(250); };
 (async () => {
   let t = await load({ uid: "u-aiden", email: "aiden@example.com", emailVerified: true });
+  await openTodos(t);
   ok(!t.d.querySelector('[data-a="fu-text"]'), "no follow-up before reaching out");
   const cb = t.d.querySelector('input[data-change="reached"]'); cb.checked = true; await fire(t.w, cb, "change"); await wait(200);
   const b = t.d.querySelector('[data-a="fu-text"]'); ok(b && /No reply\? Follow up/.test(b.textContent), "follow-up button after reaching out");
