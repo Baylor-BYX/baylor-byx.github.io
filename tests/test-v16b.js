@@ -99,9 +99,10 @@ const click = async (w, el) => { el.dispatchEvent(new w.MouseEvent("click", { bu
 
 const fire = async (w, el, ev) => { el.dispatchEvent(new w.Event(ev, { bubbles: true, cancelable: true })); await wait(250); };
 (async () => {
+  const D0 = new Date(2026, 10, 18, 12).getTime(); global.FAKE_NOW = D0;   // "today" for the first checks
   global.EXTRA = { "config/main": { chapter: "Iota Chapter", season: "Spring 2027 Rush", breakMode: true },
-    "rounds/old": { name: "Old text", kind: "text", msg: "hi {first}", assign: { "r-jake": "t-aiden" }, createdAt: Date.now() - 8 * 86400000, closed: false },
-    "rounds/oldcall": { name: "Calls · week of Nov 9", kind: "call", week: "2026-11-09", assign: { "r-jake": "t-aiden" }, createdAt: Date.now() - 9 * 86400000, closed: false } };
+    "rounds/old": { name: "Old text", kind: "text", msg: "hi {first}", assign: { "r-jake": "t-aiden" }, createdAt: D0 - 8 * 86400000, closed: false },
+    "rounds/oldcall": { name: "Calls · week of Nov 9", kind: "call", week: "2026-11-09", assign: { "r-jake": "t-aiden" }, createdAt: D0 - 9 * 86400000, closed: false } };
   // today (Nov 18): nothing auto-created yet
   let J = await load({ uid: "u-jonah", email: "jonah@example.com", emailVerified: true }); J.w.location.hash = "#board"; await wait(300);
   ok(!Object.keys(J.fake.store).some(k => k.startsWith("rounds/auto-")), "nothing auto-created before Thanksgiving week");

@@ -60,12 +60,25 @@ The plan is in "BYX Rush Portal: Going National" (Rob has it). See "National pla
 - `access/{email}`: role `member` | `coordinator` | `viewer`. Owner is hardcoded (`baylor@byx.org`).
 - Helper functions in rules: `verified()`, `email()`, `isOwner()`, `isMember()`, `isWriter()` (member or coordinator),
   `isAdmin()` (coordinator or owner).
-- Brothers can update their own `team` entry only for `uid` and About-you fields; can't change roles.
+- Brothers can update their own `team` entry only for `uid` and About-you fields (including `homeZip`); can't change roles.
 - `knows` ("I know him personally") and the "Closest on the team" list: coordinators/owner only (brothers see their own).
 - `lunches`: brothers can create only self-planned lunches for themselves (`selfPlanned: true`).
 - `cards`: brothers can only change signing/asking/address-flag fields; `eligible` (who gets a card) is coordinators only.
 - `addresses`: rush team can read/write; viewers cannot.
 - When a feature writes a new field or collection, update `firestore.rules` and the rules mirror inside the tests.
+
+## Break mode (what it does now)
+
+- Coordinators switch it on from the Board ("Seasons"). Turning it on stamps `config/main.breakSince`.
+- **Guys near you** (My rush): rushees whose home is in the same metro area as the brother, so they can grab lunch
+  over break. Areas come from the `AREAS` table in `app/index.html` (zip prefixes + city names). A rushee's area comes
+  from his saved home address (`addresses/{id}`) and his `hometown`; a brother's from `homeZip` and `hometown` on his
+  team entry (About you). **Show the city or area only, never the street address.**
+- "Reached out" is a `reachouts` doc with `near: true`; a lunch dated since break started also counts. Both show to
+  the whole team so a rushee isn't texted twice.
+- The Board (coordinators only) lists rushees with no brother nearby and rushees with no hometown on file.
+- **Holiday texts** (`rounds` with `kind: "text"`, checked off in `sends`) are still part of break mode.
+- Weekly call rounds were removed (Nov 2026). Old `kind: "call"` rounds still show under Past on the Board.
 
 ## Testing
 

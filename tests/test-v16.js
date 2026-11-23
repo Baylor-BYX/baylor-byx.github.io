@@ -1,3 +1,7 @@
+// Freeze the clock at Nov 17, 2026 (when these tests were written), so fixed dates in the sample data never go stale.
+{ const RD = Date; const OFF = new RD(2026, 10, 17, 12).getTime() - RD.now();
+  global.__FREEZE = function (W) { const B = W.Date; class FD extends B { constructor(...a) { if (a.length) super(...a); else super(B.now() + OFF); } static now() { return B.now() + OFF; } } W.Date = FD; };
+  global.__FREEZE(global); }
 const { JSDOM } = require("jsdom");
 const fs = require("fs");
 const makeFake = require("./fakefb");
@@ -81,6 +85,7 @@ async function load(user) {
     beforeParse(w) {
       fake = makeFake({ store: (global.KEEP = global.KEEP || seed()), user, denied: (...a) => rulesFor(fake, userRef)(...a) });
       const origSet = fake.setUser; fake.setUser = (u) => { userRef.u = u; origSet(u); };
+      global.__FREEZE(w);
       w.firebase = fake.firebase; w.BYX_FIREBASE = { apiKey: "test" }; w.BYX_OWNERS = [OWNER];
       w.scrollTo = () => {}; w.matchMedia = () => ({ matches: false, addEventListener() {} });
       w.navigator.clipboard = { writeText: () => Promise.resolve() };
@@ -100,43 +105,29 @@ const fire = async (w, el, ev) => { el.dispatchEvent(new w.Event(ev, { bubbles: 
 (async () => {
   // modes off
   let t = await load({ uid: "u-aiden", email: "aiden@example.com", emailVerified: true });
-  ok(!/Your calls this week/.test(txt(t.d)) && !/Christmas cards/.test(txt(t.d)), "nothing shows with modes off");
+  ok(!/Guys near you/.test(txt(t.d)) && !/Christmas cards/.test(txt(t.d)), "nothing shows with modes off");
   let J = await load({ uid: "u-jonah", email: "jonah@example.com", emailVerified: true });
   J.w.location.hash = "#board"; await wait(200);
   const sw = J.d.querySelector('input[data-change="mode"][data-k="breakMode"]'); ok(!!sw, "seasons switches on Board");
   sw.checked = true; await fire(J.w, sw, "change");
-  ok(J.fake.store["config/main"].breakMode === true, "break mode on");
-  await click(J.w, J.d.querySelector('[data-a="call-week"]')); await wait(300);
-  const rid = Object.keys(J.fake.store).find(k => k.startsWith("rounds/")).slice(7);
-  ok(J.w.location.hash === "#round:" + rid && /Calls · week of/.test(txt(J.d)), "call week created, round page open");
-  ok(/Not assigned/.test(txt(J.d)) && Object.keys(J.fake.store["rounds/" + rid].assign).length === 0, "starts unassigned");
-  const sel = J.d.querySelector('select[data-change="round-who"][data-id="r-jake"]'); sel.value = "t-aiden"; await fire(J.w, sel, "change");
-  ok(J.fake.store["rounds/" + rid].assign["r-jake"] === "t-aiden", "manual assign");
-  await click(J.w, J.d.querySelector('[data-a="round-auto"]')); await wait(300);
-  const asg = J.fake.store["rounds/" + rid].assign; ok(Object.keys(asg).length === 3 && asg["r-jake"] === "t-aiden", "auto-assign fills the rest, keeps manual: " + JSON.stringify(asg));
+  ok(J.fake.store["config/main"].breakMode === true && J.fake.store["config/main"].breakSince > 0, "break mode on, start time saved");
+  ok(!J.d.querySelector('[data-a="call-week"]') && !/Start calls/.test(txt(J.d)), "no call weeks anymore");
   // holiday text round
-  J.w.location.hash = "#board"; await wait(200);
   await click(J.w, J.d.querySelector('[data-a="round-new"]'));
   await fire(J.w, J.d.querySelector('[data-form="roundnew"]'), "submit"); await wait(300);
-  const tid = Object.keys(J.fake.store).filter(k => k.startsWith("rounds/")).map(k => k.slice(7)).find(k => k !== rid);
-  ok(J.fake.store["rounds/" + tid].name === "Happy Thanksgiving", "thanksgiving round");
+  const tid = Object.keys(J.fake.store).filter(k => k.startsWith("rounds/")).map(k => k.slice(7))[0];
+  ok(J.fake.store["rounds/" + tid].name === "Happy Thanksgiving" && J.fake.store["rounds/" + tid].kind === "text", "thanksgiving round");
   await click(J.w, J.d.querySelector('[data-a="round-auto"]')); await wait(300);
+  ok(Object.keys(J.fake.store["rounds/" + tid].assign).length === 3, "auto-assign gives every guy a brother");
   // brother side
   t = await load({ uid: "u-aiden", email: "aiden@example.com", emailVerified: true });
   let tx = txt(t.d);
-  ok(/Your calls this week/.test(tx) && /Jake Sample/.test(tx), "brother sees his calls");
-  ok(!!t.d.querySelector('a[href^="tel:"]'), "call button dials");
+  ok(!/Your calls this week/.test(tx) && !t.d.querySelector('a[href^="tel:"]') && !t.d.querySelector('[data-a="call-log"]'), "calls are gone from My rush");
   ok(/Happy Thanksgiving/.test(tx), "brother sees holiday text");
-  await click(t.w, t.d.querySelector('[data-a="call-out"][data-v="talked"][data-id="r-jake"]')); await wait(300);
-  ok(t.fake.store["sends/" + rid + "__r-jake"] && t.fake.store["sends/" + rid + "__r-jake"].outcome === "talked", "talked recorded");
-  ok(/Call with Jake/.test(txt(t.d)), "note prompt after call");
-  const nf = t.d.querySelector('.modal [data-form="note"]'); nf.querySelector("textarea").value = "Good call, loves skiing"; nf.querySelector('[name="rating"][value="4"]').checked = true;
-  await fire(t.w, nf, "submit"); await wait(200);
-  ok(Object.values(t.fake.store).some(v => v.text === "Good call, loves skiing" && v.rating === 4) && !t.d.querySelector('.modal [data-form="note"]'), "call note saved, modal closed");
-  ok(Object.values(t.fake.store).some(v => v.kind === "call" && v.rusheeId === "r-jake"), "call counts as contact");
   const tb = t.d.querySelector('[data-a="round-text"]');
   if (tb) { const who = tb.dataset.id; await click(t.w, tb); const m = t.d.querySelector(".modal textarea.msgedit").value; ok(/Happy Thanksgiving from all of us at BYX/.test(m) && m.indexOf("{first}") < 0, "holiday message filled: " + m.slice(0, 40));
-    await click(t.w, t.d.querySelector('.modal [data-a="round-sent"]')); await wait(300); ok(!!t.fake.store["sends/" + tid + "__" + who], "holiday text checked off"); }
+    await click(t.w, t.d.querySelector('.modal [data-a="round-sent"]')); await wait(300); ok(!!t.fake.store["sends/" + tid + "__" + who], "holiday text checked off");
+    ok(Object.values(t.fake.store).some(v => v.kind === "text" && v.roundId === tid), "holiday text counts as contact"); }
   else ok(false, "no holiday text button for aiden");
   // brother cannot assign or mark others' sends via rules
   const r1 = await t.w.eval('firebase.firestore().doc("rounds/x").set({name:"x"}).then(()=>"ok",e=>e.code)'); ok(r1 === "permission-denied", "brother can't create rounds");
