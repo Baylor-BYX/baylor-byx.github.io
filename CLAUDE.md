@@ -102,6 +102,13 @@ site manually for now. Make changes in the working tree only.
 ## Writing and UI conventions
 
 - Users are college guys on iPhones. Mobile first, big tap targets, plain words, short sentences.
+- **Sizes (polish update, Nov 2026):** every text box, dropdown and textarea is 16px or larger, or iPhones zoom the
+  page when it's tapped. Buttons are 44px tall (`.btn`), small ones 40px (`.btn.sm`). `tests/test-polish.js` checks this.
+- **Motion:** `render()` rebuilds the whole screen, so CSS animations must be gated on `#app[data-enter~="modal|drawer|view"]`,
+  which `render()` sets only when that thing just opened. An ungated animation replays on every refresh.
+  Always keep the `prefers-reduced-motion` fallbacks.
+- Cards use a soft shadow in light mode (`--shadow`) and a thin outline in dark mode (`--card-line`). Don't add new
+  hard borders around cards.
 - No jargon in the UI ("Reached out", "Closest on the team", "Goes by", not technical terms).
 - Brand: BYX purple/plum with gold accents; supports dark mode through CSS variables (`--ink`, `--panel`, `--purple`, …).
   Never hardcode white backgrounds.

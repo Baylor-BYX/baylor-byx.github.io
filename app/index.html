@@ -281,7 +281,6 @@ th select{min-width:130px;padding:5px 7px;font-size:13px}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(86px + env(safe-area-inset-bottom));background:var(--plum);color:#fff;border-left:4px solid var(--gold);padding:9px 16px;border-radius:10px;font-weight:600;font-size:14px;z-index:80;box-shadow:0 8px 30px rgba(0,0,0,.3);max-width:90%}
 .progress{height:8px;background:var(--panel2);border-radius:4px;overflow:hidden}
 .progress i{display:block;height:100%;background:var(--purple)}
-@media (prefers-reduced-motion:no-preference){.drawer{animation:slide .18s ease-out}.modal{animation:rise .18s ease-out}}
 @keyframes slide{from{transform:translateX(30px);opacity:.6}to{transform:none;opacity:1}}
 @keyframes rise{from{transform:translateY(20px);opacity:.6}to{transform:none;opacity:1}}
 .wkbars{display:flex;align-items:flex-end;gap:10px;height:150px;padding-top:8px}
@@ -301,6 +300,83 @@ th select{min-width:130px;padding:5px 7px;font-size:13px}
 .tie{display:inline-block;white-space:nowrap;font-size:11.5px;font-weight:800;color:#371859;background:#E9F09F;border-radius:999px;padding:1px 8px;vertical-align:middle}
 .tie-line{display:block;margin-top:3px;line-height:1}
 .ties{border-left:4px solid #CCDE57}
+
+/* ===== Polish update (Nov 2026): sizes, softer cards, motion. Styling only; no layout or data changes. ===== */
+:root{--bg:#F6F5F8;--r:14px;--hair:#EFEDF3;--card-line:transparent;--field-line:#D9D5E0;
+  --shadow:0 1px 2px rgba(55,24,89,.06),0 6px 18px rgba(55,24,89,.07);
+  --av1-bg:#E6DEF2;--av1-fg:#4F2D7F;--av2-bg:#D6EDF4;--av2-fg:#02607C;--av3-bg:#EEF3C4;--av3-fg:#4A5210;--av4-bg:#F4DAD7;--av4-fg:#8E2317;--av5-bg:#E6E5E4;--av5-fg:#2C2A26}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#17121D;--hair:var(--line);--card-line:var(--line);--field-line:var(--line);--shadow:none;
+  --av1-bg:#3B2C55;--av1-fg:#D9CBF2;--av2-bg:#0B4558;--av2-fg:#BDE8F5;--av3-bg:#3A4012;--av3-fg:#E3EDA0;--av4-bg:#4A2522;--av4-fg:#F2B4AC;--av5-bg:#38343F;--av5-fg:#E2DFE6}}
+:root[data-theme="dark"]{--bg:#17121D;--hair:var(--line);--card-line:var(--line);--field-line:var(--line);--shadow:none;
+  --av1-bg:#3B2C55;--av1-fg:#D9CBF2;--av2-bg:#0B4558;--av2-fg:#BDE8F5;--av3-bg:#3A4012;--av3-fg:#E3EDA0;--av4-bg:#4A2522;--av4-fg:#F2B4AC;--av5-bg:#38343F;--av5-fg:#E2DFE6}
+html{-webkit-text-size-adjust:100%}
+a,button,label,select,input,textarea,[role="button"]{-webkit-tap-highlight-color:transparent}
+button,a.btn,.tabs a,.item{touch-action:manipulation}
+
+/* 1. Text boxes at 16px so iPhones don't zoom the page when you tap one */
+input[type=text],input[type=tel],input[type=date],input[type=time],input[type=search],input[type=email],input[type=password],input[type=number],input[type=url],input:not([type]),select,textarea,textarea.msgedit{font-size:16px;min-height:44px;padding:10px 12px;border-radius:11px;border-color:var(--field-line)}
+input:not([type]){width:100%;background:var(--panel);border:1px solid var(--field-line)}
+textarea{min-height:92px}
+.inline-add input,.plantable select,th select{font-size:16px;min-height:40px}
+.field label{font-size:13px}
+
+/* 2. Bigger things to tap */
+.btn{min-height:44px;padding:9px 16px;border-radius:12px}
+.btn.sm{min-height:40px;padding:6px 11px;border-radius:10px}
+.filters{gap:8px}
+.filters button{min-height:40px;padding:6px 14px;font-size:13.5px}
+.seg a,.seg button{min-height:40px;padding:8px 12px;display:inline-flex;align-items:center}
+.name{min-height:36px;padding:6px 11px;display:inline-flex;align-items:center;border-radius:10px}
+.chip{min-height:34px}
+.chip button{min-width:32px;min-height:32px;font-size:17px}
+.rate span{min-width:46px;min-height:44px;align-items:center;font-size:15px;border-radius:10px}
+.checks label{padding:11px 12px}
+.checks input,.checkrow input{width:20px;height:20px}
+.chip-me{position:relative}.chip-me::after{content:"";position:absolute;inset:-8px}
+.tabs a{min-height:50px;justify-content:center}
+.item{padding:12px 14px}
+
+/* 3. Softer cards: shadow instead of an outline (dark mode keeps a thin outline, since shadows don't show there) */
+.card,.list,.feed,.calday:not(.today),.checks{border-color:var(--card-line);box-shadow:var(--shadow)}
+.tile,.lunch,.evcard,.sub{border-right-color:var(--card-line);border-bottom-color:var(--card-line);box-shadow:var(--shadow)}
+.tile{border-left-color:var(--card-line)}
+.lunch,.evcard,.sub{border-top-color:var(--card-line)}
+.item,.feed div,.checkrow,.checks label,.note,.calopt{border-top-color:var(--hair)}
+.card{padding:16px}
+.tile{padding:14px 16px}
+.empty{border-radius:var(--r)}
+.modal{border-radius:22px 22px 0 0;box-shadow:0 -10px 40px rgba(23,12,35,.25)}
+@media (min-width:700px){.modal{border-radius:20px}}
+.toast{border-radius:12px;padding:11px 18px}
+
+/* Round faces; guys without a photo get initials in one of five tints */
+.avatar{width:40px;height:40px;border-radius:50%}
+.avatar.av1{background:var(--av1-bg);color:var(--av1-fg)}.avatar.av2{background:var(--av2-bg);color:var(--av2-fg)}.avatar.av3{background:var(--av3-bg);color:var(--av3-fg)}.avatar.av4{background:var(--av4-bg);color:var(--av4-fg)}.avatar.av5{background:var(--av5-bg);color:var(--av5-fg)}
+.photo-btn{border-radius:50%}
+
+/* 4. Motion. Things animate once, when they open, not every time the screen refreshes. */
+.btn,.filters button,.tabs a,.name,.chip-me,.seg a,.seg button{transition:transform .09s ease-out,background-color .15s,border-color .15s,color .15s}
+.btn:active,.filters button:active,.name:active,.chip-me:active{transform:scale(.96)}
+.tabs a:active svg{transform:scale(.88)}
+.tabs a svg{transition:transform .09s ease-out}
+.item:active,.checkrow:active{background:var(--panel2)}
+.okmark{display:inline-grid;place-items:center;width:30px;height:30px;border-radius:50%;background:var(--gold);color:#2C2A26;font-size:17px;font-family:var(--body);vertical-align:middle;margin-left:4px}
+@keyframes sheet{from{transform:translateY(100%)}to{transform:none}}
+@keyframes pushin{from{transform:translateX(100%)}to{transform:none}}
+@keyframes fadein{from{opacity:0}to{opacity:1}}
+@keyframes viewin{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@keyframes pop{0%{transform:scale(.3);opacity:0}60%{transform:scale(1.18);opacity:1}100%{transform:scale(1)}}
+@keyframes toastin{from{opacity:0;transform:translate(-50%,14px)}to{opacity:1;transform:translate(-50%,0)}}
+@media (prefers-reduced-motion:no-preference){
+  [data-enter~="modal"] .modalwrap,[data-enter~="drawer"] .scrim{animation:fadein .2s ease-out}
+  [data-enter~="modal"] .modal{animation:sheet .3s cubic-bezier(.2,.85,.25,1)}
+  [data-enter~="drawer"] .drawer{animation:pushin .28s cubic-bezier(.2,.85,.25,1)}
+  [data-enter~="view"] #view{animation:viewin .18s ease-out}
+  [data-enter~="modal"] .okmark{animation:pop .45s .12s cubic-bezier(.2,.8,.3,1) both}
+  .toast.in{animation:toastin .22s ease-out}
+}
+@media (prefers-reduced-motion:no-preference) and (min-width:700px){[data-enter~="modal"] .modal{animation:rise .22s ease-out}}
+@media (prefers-reduced-motion:reduce){.btn,.filters button,.tabs a,.name,.chip-me{transition:none}.btn:active,.filters button:active,.name:active,.chip-me:active{transform:none}}
 </style>
 </head>
 <body>
@@ -399,9 +475,10 @@ function coordinators(){return arr(S.team).filter(function(t){return t.role==="c
 function extGroup(phones,msg,label){var ns=phones.map(normPhone).filter(Boolean);if(!ns.length)return "";return smsHref(ns,msg);}
 function inviteMsg(e,rid){var r=S.rushees.get(rid);var t=myTeam();
   return "Hey "+(r?fname(r):"")+"! This is "+(t?t.name.split(" ")[0]:"")+" with BYX. We're having "+e.name+" "+whenPhrase(e.date,e.time,e.place)+". We'd love for you to come, and bring any guys you know!";}
-function avatarHTML(r,big){var st=big?' style="width:56px;height:56px;font-size:20px;border-radius:14px"':'';
+function avatarTint(n){var s=String(n||""),h=0,i;for(i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))%9973;return h%6;}
+function avatarHTML(r,big){var st=big?' style="width:64px;height:64px;font-size:22px"':'';var tn=avatarTint(r?r.name:"");
   if(r&&r.photoData&&/^data:image\//.test(r.photoData))return '<span class="avatar"'+st+'><img src="'+esc(r.photoData)+'" alt="" loading="lazy"></span>';
-  return '<span class="avatar"'+st+'>'+esc(initials(r?r.name:"?"))+'</span>';}
+  return '<span class="avatar'+(tn?" av"+tn:"")+'"'+st+'>'+esc(initials(r?r.name:"?"))+'</span>';}
 function eventsFor(rid){return arr(S.checkins).filter(function(c){return c.rusheeId===rid;}).map(function(c){return S.events.get(c.eventId);}).filter(Boolean).sort(function(a,b){return (b.date||"").localeCompare(a.date||"");});}
 function checkinsFor(eid){return arr(S.checkins).filter(function(c){return c.eventId===eid;});}
 function allTags(){var c={};arr(S.rushees).forEach(function(r){(r.tags||[]).forEach(function(t){c[t]=(c[t]||0)+1;});});return Object.keys(c).sort(function(a,b){return c[b]-c[a]||a.localeCompare(b);}).map(function(t){return [t,c[t]];});}
@@ -501,6 +578,10 @@ function render(){
     (ui.drawer?drawerHTML():"")+(ui.modal?modalHTML():"")+(ui.door&&ui.ev&&S.events.get(ui.ev)?doorHTML(S.events.get(ui.ev)):"");
   var y=window.scrollY;
   var dScroll=document.querySelector(".drawer");var ds=dScroll?dScroll.scrollTop:0;
+  /* Animate only what just opened (a sheet, a profile, a new tab), not every refresh. */
+  var mKey=ui.modal?String(ui.modal.type)+"|"+String(ui.modal.id||""):"",dKey=ui.drawer?String(ui.drawer.id||"1"):"",ent=[];
+  if(mKey&&mKey!==render.mKey)ent.push("modal");if(dKey&&dKey!==render.dKey)ent.push("drawer");if(render.route!==undefined&&ui.route!==render.route)ent.push("view");
+  render.mKey=mKey;render.dKey=dKey;render.route=ui.route;app.setAttribute("data-enter",ent.join(" "));
   app.innerHTML=html;
   Object.keys(drafts).forEach(function(id){var el=document.getElementById(id);if(el&&el.value==="")el.value=drafts[id];});
   window.scrollTo(0,y);
@@ -2031,7 +2112,7 @@ function modalHTML(){
   } else if(m.type==="sublogged"){
     var nLogged=Math.max(1,arr(S.submissions).filter(function(x){return x.type==="lunch"&&x.status==="pending"&&x.uid===me.id;}).length);
     var cs2=coordinators();var gx2=extGroup(cs2.map(function(c){return c.phone;}),"Hey "+cs2.map(function(c){return c.name.split(" ")[0];}).join(" and ")+"! I logged "+(nLogged===1?"a lunch":nLogged+" lunches")+" in the BYX Rush Portal for you to review.","Jonah & Clark");
-    h+='<div class="section"><div class="spread"><h2>Logged ✓</h2><button type="button" class="btn sm ghost" data-a="close-modal">Done</button></div>'+
+    h+='<div class="section"><div class="spread"><h2>Logged <span class="okmark">✓</span></h2><button type="button" class="btn sm ghost" data-a="close-modal">Done</button></div>'+
       '<p style="margin:0">'+esc(m.name)+' is in Jonah and Clark\'s review list. You have <b>'+nLogged+'</b> waiting for review.</p>'+
       '<div class="row"><button class="btn primary" data-a="sub-lunch">+ Log another lunch</button>'+
       (gx2?'<a class="btn ghost" href="'+esc(gx2)+'">Text Jonah &amp; Clark</a>':'')+'</div>'+
@@ -2046,7 +2127,7 @@ function modalHTML(){
       '<div class="row"><button class="btn primary" type="submit">Submit for review</button></div></form>';
   } else if(m.type==="lowint"){
     var lc=lowTo();var lm=lowMsg(m);var lx=extGroup(lc.map(function(c){return c.phone;}),lm);
-    h+='<div class="section"><div class="spread"><h2>'+(m.logged?"Logged ✓":"Note saved ✓")+'</h2><button type="button" class="btn sm ghost" data-a="close-modal">Done</button></div>'+
+    h+='<div class="section"><div class="spread"><h2>'+(m.logged?"Logged":"Note saved")+' <span class="okmark">✓</span></h2><button type="button" class="btn sm ghost" data-a="close-modal">Done</button></div>'+
       '<div class="avoid"><b>Low interest ('+m.rating+' of 5).</b> Let '+esc(lc.map(function(c){return c.name.split(" ")[0];}).join(" and "))+' know so they can decide what to do next.</div>'+
       msgAreaMulti(lm,lc.map(function(c){return c.phone;}))+'<div class="row">'+
       (lx?'<a class="btn primary" href="'+esc(lx)+'" target="_blank" rel="noopener noreferrer">Text '+esc(lc.map(function(c){return c.name.split(" ")[0];}).join(" & "))+'</a>':'')+
@@ -2127,7 +2208,7 @@ function modalHTML(){
 /* ---------- interaction ---------- */
 var toastTimer;
 function toast(msg){var el=document.querySelector(".toast");if(!el){el=document.createElement("div");el.className="toast";el.setAttribute("role","status");document.body.appendChild(el);}
-  el.textContent=msg;el.style.display="block";clearTimeout(toastTimer);toastTimer=setTimeout(function(){el.style.display="none";},2600);}
+  el.textContent=msg;el.style.display="block";el.classList.remove("in");void el.offsetWidth;el.classList.add("in");clearTimeout(toastTimer);toastTimer=setTimeout(function(){el.style.display="none";},2600);}
 function armed(btn,key){
   if(confirmArm[key]&&Date.now()-confirmArm[key]<3500){delete confirmArm[key];return true;}
   confirmArm[key]=Date.now();btn.dataset.orig=btn.dataset.orig||btn.textContent;btn.textContent="Tap again to confirm";
