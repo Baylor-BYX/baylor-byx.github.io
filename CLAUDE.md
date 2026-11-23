@@ -44,7 +44,8 @@ The plan is in "BYX Rush Portal: Going National" (Rob has it). See "National pla
   returning HTML strings: `vMe` (My rush), `vBoard`, `vCalendar`, `vEvents`, `vRushees`, `vTeam`, `vPlan`, `vRound`,
   `vCards`, `vImport`/`vWorkbook`, plus the rushee drawer and modals (`ui.modal.type`).
 - Routing: `location.hash` → `ui.route` (`#me`, `#board`, `#round:<id>`, `#cards`, …). Brothers are redirected away
-  from coordinator-only routes; viewers (Luke) are read-only.
+  from coordinator-only routes; viewers (Luke) are read-only. The owner account (baylor@byx.org) isn't on the roster,
+  so like viewers it has no My rush tab and lands on the Board (`ownerOnly()`); "Preview as…" still shows My rush.
 - Events are delegated:
   - clicks → `data-a="<action>"` handled in one big `switch` (`case "rtext": …`),
   - form submits → `data-form="<kind>"` handled in the submit handler (`kind==="note"` …),

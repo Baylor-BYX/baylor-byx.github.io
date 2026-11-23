@@ -213,12 +213,11 @@ const click = async (w, el) => { el.dispatchEvent(new w.MouseEvent("click", { bu
   ok(!/Add photo|Drop…|Merge a duplicate|Save note/.test(txt(t.d)), "viewer sees profile without edit tools");
   ok(!t.fake.log.length, "viewer wrote nothing");
 
-  // 6. owner with no email on his roster entry -> claim works and stamps email
+  // 6. owner account that isn't on the roster -> no name picker, lands on the Board (see test-owner-home.js)
   t = await load({ uid: "u-rob", email: OWNER, emailVerified: true });
-  ok(/Who are you/i.test(txt(t.d)) || /Pick your name/.test(txt(t.d)), "owner without roster email sees name picker");
-  const cb = t.d.querySelector('[data-a="claim"][data-id="t-rob"]');
-  if (cb) { await click(t.w, cb); await wait(200); ok(t.fake.store["team/t-rob"].email === OWNER, "owner claim stamps email"); ok(/Hey, Rob/.test(txt(t.d)), "owner lands on My rush"); }
-  else ok(false, "no claim button for t-rob");
+  ok(!/Who are you/i.test(txt(t.d)) && !t.d.querySelector('[data-a="claim"]'), "owner off the roster is not asked to pick a name");
+  ok(/Rush board/.test(txt(t.d)), "owner off the roster lands on the Board");
+  ok(!t.fake.store["team/t-rob"].email, "owner never claims a roster entry by accident");
 
   console.log(fails ? fails + " FAILED" : "ALL PASSED"); process.exit(fails ? 1 : 0);
 })();
